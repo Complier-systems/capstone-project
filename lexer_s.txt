@@ -20,8 +20,7 @@ extern void yyerror(const char* s);
 "-"		{return T_MINUS;}
 "*"		{return T_MULTIPLY;}
 "/"		{return T_DIVIDE;}
-"\\"		{return T_MOD;}
-"^"             {return T_POW;}
+"%"		{return T_MOD;}
 "("		{return T_LEFT;}
 ")"		{return T_RIGHT;}
 "AND"           {return T_AND;}
@@ -29,7 +28,8 @@ extern void yyerror(const char* s);
 "NOT"           {return T_NOT;}
 "exit"		{return T_QUIT;}
 "quit"		{return T_QUIT;}
-"$r"[A-Z]	{yylval.ival = yytext[2] - 'A'; return T_REG;}
+"var"[1-9]	{yylval.ival = atoi(yytext[3]); return T_VAR;}
+"var"[10-26]	{yylval.ival = atoi(yytext[3]+yytext[4]); return T_VAR;}
 "SHOW"          {return T_SHOW;}
 "LOAD"          {return T_LOAD;}
 "$acc"          {return T_ACC;}

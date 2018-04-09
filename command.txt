@@ -1,0 +1,5 @@
+rm bison bison.tab.c lex.yy.c bison.tab.h
+bison -d bison.y
+flex lex.l
+gcc -o bison bison.tab.c lex.yy.c -lm
+./bison
