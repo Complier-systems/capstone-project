@@ -2,7 +2,7 @@
 
 %{
 #include <stdio.h>
-#include "calc.tab.h"
+#include "u.tab.h"
 
 #define YY_DECL int yylex()
 
