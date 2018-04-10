@@ -44,7 +44,7 @@ int topCheck = 1;
 %token<ival> T_HEX
 %token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_MOD T_POW T_LEFT T_RIGHT
 %token T_AND T_OR T_NOT
-%token T_NEWLINE T_QUIT
+%token T_QUIT
 %token<ival> T_REG
 %token T_SHOW
 %token T_LOAD
@@ -53,6 +53,7 @@ int topCheck = 1;
 %token T_POP
 %token T_PRINT
 %token T_COMMA
+%token T_SEMICOLON
 %token<sval> T_STRING
 %token<ival> T_TOP
 %token<ival> T_SIZE
@@ -80,18 +81,18 @@ int topCheck = 1;
 %%
 
 calculation: 
-	   | calculation line			{ printf("> "); }
+	   | calculation line			{  }
 ;
 
-line: T_NEWLINE
-    	  | expression T_NEWLINE 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
-	  | expression %prec ERR_MISSOPTOR " " expression { yyerror("Missing operator"); }
-    	  | register_operation T_NEWLINE
-    	  | display	T_NEWLINE		{ if(topCheck){printf("= %i\n", $1);} topCheck=1; }
-	  | T_LOAD T_INT T_REG			{ yyerror("Unexpected operand"); }
-	  | T_LOAD T_HEX T_REG			{ yyerror("Unexpected operand"); }
-    	  | T_QUIT T_NEWLINE 			{ printf("Program is shutting down..\n"); exit(0); }
-	  | print1 T_NEWLINE			{ printf("print %s\n", $1); }
+line: T_SEMICOLON
+    	  | expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
+	  | expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
+    	  | register_operation T_SEMICOLON
+    	  | display	T_SEMICOLON		{ if(topCheck){printf("= %i\n", $1);} topCheck=1; }
+	  | T_LOAD T_INT T_REG T_SEMICOLON			{ yyerror("Unexpected operand"); }
+	  | T_LOAD T_HEX T_REG T_SEMICOLON			{ yyerror("Unexpected operand"); }
+    	  | T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
+	  | print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
 ;
 
 register_operation: T_PUSH expression           { $$ = $2; push($2); }

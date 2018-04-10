@@ -16,17 +16,7 @@ extern void yyerror(const char* s);
 
 [0-9]+		{yylval.ival = atoi(yytext); return T_INT;}
 [0-9]+[a-fA-F]*[0-9]*[hH] {char* tmp_yytext = strndup(yytext, strlen(yytext)-1); yylval.ival = strtol(tmp_yytext, NULL, 16); free(tmp_yytext); return T_HEX;}
-\n		{return T_NEWLINE;}
-L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
-","		{return T_COMMA;}
-"+"		{return T_PLUS;}
-"-"		{return T_MINUS;}
-"*"		{return T_MULTIPLY;}
-"/"		{return T_DIVIDE;}
-"\\"		{return T_MOD;}
-"^"             {return T_POW;}
-"("		{return T_LEFT;}
-")"		{return T_RIGHT;}
+
 "print"		{return T_PRINT;}
 "AND"           {return T_AND;}
 "OR"            {return T_OR;}
@@ -41,7 +31,22 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "POP"           {return T_POP;}
 "$top"          {return T_TOP;}
 "$size"         {return T_SIZE;}
-[ \t]		{}
+
+L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
+
+","		{return T_COMMA;}
+"+"		{return T_PLUS;}
+"-"		{return T_MINUS;}
+"*"		{return T_MULTIPLY;}
+"/"		{return T_DIVIDE;}
+"\\"		{return T_MOD;}
+"^"             {return T_POW;}
+"("		{return T_LEFT;}
+")"		{return T_RIGHT;}
+";"		{return T_SEMICOLON;}
+
+[ \t\v\f]	{}
+[\n]		{printf("> ");}
 .		{printf("Bad character\n");}
 
 %%
