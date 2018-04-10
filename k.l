@@ -1,5 +1,7 @@
 %option noyywrap
 
+L		[a-zA-Z_]
+
 %{
 #include <stdio.h>
 #include "k.tab.h"
@@ -12,10 +14,10 @@ extern void yyerror(const char* s);
 
 %%
 
-[ \t]		{yylval.sval = yytext; return T_SPACE;}
 [0-9]+		{yylval.ival = atoi(yytext); return T_INT;}
-[0-9]+[a-fA-F]*[0-9]*[hH] {memmove(&yytext[strlen(yytext)-1], &yytext[strlen(yytext)], 1); yylval.ival = strtol(yytext, NULL, 16);; return T_HEX;}
+[0-9]+[a-fA-F]*[0-9]*[hH] {char* tmp_yytext = strndup(yytext, strlen(yytext)-1); yylval.ival = strtol(tmp_yytext, NULL, 16); free(tmp_yytext); return T_HEX;}
 \n		{return T_NEWLINE;}
+L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
 ","		{return T_COMMA;}
 "+"		{return T_PLUS;}
 "-"		{return T_MINUS;}
@@ -25,7 +27,6 @@ extern void yyerror(const char* s);
 "^"             {return T_POW;}
 "("		{return T_LEFT;}
 ")"		{return T_RIGHT;}
-"\""		{printf("DoubleQuote\n"); return T_DOUBLEQUOTE;}
 "print"		{return T_PRINT;}
 "AND"           {return T_AND;}
 "OR"            {return T_OR;}
@@ -40,6 +41,7 @@ extern void yyerror(const char* s);
 "POP"           {return T_POP;}
 "$top"          {return T_TOP;}
 "$size"         {return T_SIZE;}
-[^"]		{yylval.sval = yytext; return T_STRING;}
+[ \t]		{}
+.		{printf("Bad character\n");}
 
 %%

@@ -53,8 +53,6 @@ int topCheck = 1;
 %token T_POP
 %token T_PRINT
 %token T_COMMA
-%token T_DOUBLEQUOTE
-%token<sval> T_SPACE
 %token<sval> T_STRING
 %token<ival> T_TOP
 %token<ival> T_SIZE
@@ -73,8 +71,9 @@ int topCheck = 1;
 %type<ival> expression
 %type<ival> register_operation
 %type<ival> display
-%type<sval> print
-%type<sval> string
+%type<sval> print1
+%type<sval> print2
+//%type<sval> string
 
 %start calculation
 
@@ -92,8 +91,7 @@ line: T_NEWLINE
 	  | T_LOAD T_INT T_REG			{ yyerror("Unexpected operand"); }
 	  | T_LOAD T_HEX T_REG			{ yyerror("Unexpected operand"); }
     	  | T_QUIT T_NEWLINE 			{ printf("Program is shutting down..\n"); exit(0); }
-	  | print T_NEWLINE			{ printf("print %s\n", $1); }
-	  | T_DOUBLEQUOTE T_NEWLINE		{ printf("ASDF\n"); }
+	  | print1 T_NEWLINE			{ printf("print %s\n", $1); }
 ;
 
 register_operation: T_PUSH expression           { $$ = $2; push($2); }
@@ -130,50 +128,35 @@ display: T_SHOW T_REG				{ $$ = getReg($2); }
 	  | T_SHOW T_HEX			{ yyerror("Unexpected operand: SHOW <reg>"); }
 ;
 
-print: print T_COMMA expression          	{ char* snum = malloc(sizeof($3));
+print1: print2 T_RIGHT				{ int len=0;
+						len = strlen($1);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", $1); }
+;
+
+print2: print2 T_COMMA expression         	{ char* snum = malloc(sizeof($3));
 						snprintf (snum, sizeof($3), "%d", $3);
 						int len=0;
 						len = strlen($1) + strlen(snum);
 						$$ = malloc(len + 1);
 						sprintf($$, "%s%s", $1, snum); }
 
-	| print T_COMMA T_DOUBLEQUOTE string T_DOUBLEQUOTE		{ int len=0;
-						len = strlen($1) + strlen($4);
+	| print2 T_COMMA T_STRING		{ int len=0;
+						len = strlen($1) + strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $4); }
+						sprintf($$, "%s%s", $1, $3); }
 
-	| T_PRINT T_SPACE expression			{ char* snum = malloc(sizeof($3));
+	| T_PRINT T_LEFT expression		{ char* snum = malloc(sizeof($3));
 						snprintf (snum, sizeof($3), "%d", $3);
 						int len=0;
 						len = strlen(snum);
 						$$ = malloc(len + 1);
 						sprintf($$, "%s", snum); }
 
-	| T_PRINT T_SPACE T_DOUBLEQUOTE string T_DOUBLEQUOTE			{ int len=0;
-						len = strlen($4);
+	| T_PRINT T_LEFT T_STRING		{ int len=0;
+						len = strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s", $4); }
-;
-
-string: string T_STRING				{int len=0;
-						len = strlen($1) + strlen($2);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $2);}
-
-	| string T_SPACE			{int len=0;
-						len = strlen($1) + strlen($2);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $2);}
-
-	| T_STRING				{int len=0;
-						len = strlen($1);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $1);}
-
-	| T_SPACE				{int len=0;
-						len = strlen($1);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $1);}
+						sprintf($$, "%s", $3); }
 ;
 
 expression: T_INT				{ $$ = $1; }
