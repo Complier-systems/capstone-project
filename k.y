@@ -52,6 +52,7 @@ int topCheck = 1;
 %token T_PUSH
 %token T_POP
 %token T_PRINT
+%token T_HEXPRINT
 %token T_COMMA
 %token T_SEMICOLON
 %token<sval> T_STRING
@@ -70,10 +71,9 @@ int topCheck = 1;
 %precedence ERR_MISSOPRND
 
 %type<ival> expression
-%type<ival> register_operation
-%type<ival> display
 %type<sval> print1
 %type<sval> print2
+%type<sval> hex
 //%type<sval> string
 
 %start calculation
@@ -87,46 +87,8 @@ calculation:
 line: T_SEMICOLON
     	  | expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
 	  | expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
-    	  | register_operation T_SEMICOLON
-    	  | display	T_SEMICOLON		{ if(topCheck){printf("= %i\n", $1);} topCheck=1; }
-	  | T_LOAD T_INT T_REG T_SEMICOLON			{ yyerror("Unexpected operand"); }
-	  | T_LOAD T_HEX T_REG T_SEMICOLON			{ yyerror("Unexpected operand"); }
     	  | T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
 	  | print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
-;
-
-register_operation: T_PUSH expression           { $$ = $2; push($2); }
-          | T_POP T_REG                         { if(!isEmpty()){int val=pop(); $$ = val; setReg(val, $2);}else{yyerror("Stack is empty");} }
-          | T_LOAD T_REG T_REG                 	{ $$ = getReg($2); setReg(getReg($2), $3); }
-	  | T_LOAD T_ACC T_REG                 	{ $$ = getAcc(); setReg(getAcc(), $3); }
-	  | T_LOAD T_TOP T_REG                 	{ if(!isEmpty()){$$ = getTop(); setReg(getTop(), $3);}else{yyerror("Stack is empty");} }
-	  | T_LOAD T_SIZE T_REG                	{ $$ = getSize(); setReg(getSize(), $3); }
-
-          | T_POP T_ACC				{ yyerror("Accumulator is Read-only"); }
-	  | T_LOAD T_REG T_ACC                 	{ yyerror("Accumulator is Read-only"); }
-	  | T_LOAD T_ACC T_ACC                 	{ yyerror("Accumulator is Read-only"); }
-	  | T_LOAD T_TOP T_ACC                 	{ yyerror("Accumulator is Read-only"); }
-	  | T_LOAD T_SIZE T_ACC                 { yyerror("Accumulator is Read-only"); }
-
-          | T_POP T_TOP				{ yyerror("Top of stack is Read-only"); }
-	  | T_LOAD T_REG T_TOP                 	{ yyerror("Top of stack is Read-only"); }
-	  | T_LOAD T_ACC T_TOP                 	{ yyerror("Top of stack is Read-only"); }
-	  | T_LOAD T_TOP T_TOP                 	{ yyerror("Top of stack is Read-only"); }
-	  | T_LOAD T_SIZE T_TOP                 { yyerror("Top of stack is Read-only"); }
-
-          | T_POP T_SIZE			{ yyerror("Size of stack is Read-only"); }
-	  | T_LOAD T_REG T_SIZE                 { yyerror("Size of stack is Read-only"); }
-	  | T_LOAD T_ACC T_SIZE                 { yyerror("Size of stack is Read-only"); }
-	  | T_LOAD T_TOP T_SIZE                 { yyerror("Size of stack is Read-only"); }
-	  | T_LOAD T_SIZE T_SIZE              	{ yyerror("Size of stack is Read-only"); }
-;
-
-display: T_SHOW T_REG				{ $$ = getReg($2); }
-	  | T_SHOW T_ACC			{ $$ = getAcc(); }
-	  | T_SHOW T_TOP			{ if(!isEmpty()){$$ = getTop();}else{yyerror("Stack is empty"); topCheck=0;} }
-	  | T_SHOW T_SIZE			{ $$ = getSize(); }
-	  | T_SHOW T_INT			{ yyerror("Unexpected operand: SHOW <reg>"); }
-	  | T_SHOW T_HEX			{ yyerror("Unexpected operand: SHOW <reg>"); }
 ;
 
 print1: print2 T_RIGHT				{ int len=0;
@@ -135,29 +97,51 @@ print1: print2 T_RIGHT				{ int len=0;
 						sprintf($$, "%s", $1); }
 ;
 
-print2: print2 T_COMMA expression         	{ char* snum = malloc(sizeof($3));
-						snprintf (snum, sizeof($3), "%d", $3);
+print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
+						snprintf (snum, 30, "%d", $3);
 						int len=0;
 						len = strlen($1) + strlen(snum);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, snum); }
+						sprintf($$, "%s%s", $1, snum);
+						free(snum); }
+
+	| print2 T_COMMA hex			{ int len=0;
+						len = strlen($1) + strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s%s", $1, $3); }
 
 	| print2 T_COMMA T_STRING		{ int len=0;
 						len = strlen($1) + strlen($3);
 						$$ = malloc(len + 1);
 						sprintf($$, "%s%s", $1, $3); }
 
-	| T_PRINT T_LEFT expression		{ char* snum = malloc(sizeof($3));
-						snprintf (snum, sizeof($3), "%d", $3);
+	| T_PRINT T_LEFT expression		{ char* snum = malloc(30);
+						snprintf (snum, 30, "%d", $3);
 						int len=0;
 						len = strlen(snum);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s", snum); }
+						sprintf($$, "%s", snum); 
+						free(snum); }
+
+	| T_PRINT T_LEFT hex			{ int len=0;
+						len = strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", $3); }
 
 	| T_PRINT T_LEFT T_STRING		{ int len=0;
 						len = strlen($3);
 						$$ = malloc(len + 1);
 						sprintf($$, "%s", $3); }
+;
+
+hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
+						snprintf (snum, 30, "0x%X", $3);
+						int len=0;
+						len = strlen(snum);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", snum); 
+						free(snum); }
+
 ;
 
 expression: T_INT				{ $$ = $1; }
