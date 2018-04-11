@@ -18,6 +18,7 @@ extern void yyerror(const char* s);
 [0-9]+[a-fA-F]*[0-9]*[hH] {char* tmp_yytext = strndup(yytext, strlen(yytext)-1); yylval.ival = strtol(tmp_yytext, NULL, 16); free(tmp_yytext); return T_HEX;}
 
 "print"		{return T_PRINT;}
+"println"	{return T_PRINTLN;}
 "hex"		{return T_HEXPRINT;}
 "AND"           {return T_AND;}
 "OR"            {return T_OR;}
@@ -47,7 +48,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 ";"		{return T_SEMICOLON;}
 
 [ \t\v\f]	{}
-[\n]		{printf("> ");}
+[\n]		{printf("\n> ");}
 .		{printf("Bad character\n");}
 
 %%

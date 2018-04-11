@@ -52,6 +52,7 @@ int topCheck = 1;
 %token T_PUSH
 %token T_POP
 %token T_PRINT
+%token T_PRINTLN
 %token T_HEXPRINT
 %token T_COMMA
 %token T_SEMICOLON
@@ -73,8 +74,9 @@ int topCheck = 1;
 %type<ival> expression
 %type<sval> print1
 %type<sval> print2
+%type<sval> println1
+%type<sval> println2
 %type<sval> hex
-//%type<sval> string
 
 %start calculation
 
@@ -88,7 +90,8 @@ line: T_SEMICOLON
     	  | expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
 	  | expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
     	  | T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
-	  | print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
+	  | print1 T_SEMICOLON			{ printf("print: %s", $1); }
+	  | println1 T_SEMICOLON		{ printf("print: %s", $1); }
 ;
 
 print1: print2 T_RIGHT				{ int len=0;
@@ -134,6 +137,49 @@ print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
 						sprintf($$, "%s", $3); }
 ;
 
+println1: println2 T_RIGHT			{ int len=0;
+						len = strlen($1) + 1; // + 1 for newline
+						$$ = malloc(len + 1); // + 1 for terminal symbol "\0"
+						sprintf($$, "%s\n", $1); }
+;
+
+println2: println2 T_COMMA expression         	{ char* snum = malloc(30);
+						snprintf (snum, 30, "%d", $3);
+						int len=0;
+						len = strlen($1) + strlen(snum);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s%s", $1, snum);
+						free(snum); }
+
+	| println2 T_COMMA hex			{ int len=0;
+						len = strlen($1) + strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s%s", $1, $3); }
+
+	| println2 T_COMMA T_STRING		{ int len=0;
+						len = strlen($1) + strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s%s", $1, $3); }
+
+	| T_PRINTLN T_LEFT expression		{ char* snum = malloc(30);
+						snprintf (snum, 30, "%d", $3);
+						int len=0;
+						len = strlen(snum);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", snum); 
+						free(snum); }
+
+	| T_PRINTLN T_LEFT hex			{ int len=0;
+						len = strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", $3); }
+
+	| T_PRINTLN T_LEFT T_STRING		{ int len=0;
+						len = strlen($3);
+						$$ = malloc(len + 1);
+						sprintf($$, "%s", $3); }
+;
+
 hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
 						snprintf (snum, 30, "0x%X", $3);
 						int len=0;
@@ -141,7 +187,6 @@ hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
 						$$ = malloc(len + 1);
 						sprintf($$, "%s", snum); 
 						free(snum); }
-
 ;
 
 expression: T_INT				{ $$ = $1; }
