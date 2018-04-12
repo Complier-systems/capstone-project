@@ -42,6 +42,7 @@ int topCheck = 1;
 
 %token<ival> T_INT
 %token<ival> T_HEX
+%token<ival> T_VAR
 %token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_MOD T_POW T_LEFT T_RIGHT
 %token T_AND T_OR T_NOT
 %token T_QUIT
@@ -56,6 +57,10 @@ int topCheck = 1;
 %token T_HEXPRINT
 %token T_COMMA
 %token T_SEMICOLON
+%token T_CLEFT
+%token T_CRIGHT
+%token T_IF
+%token T_EQUAL
 %token<sval> T_STRING
 %token<ival> T_TOP
 %token<ival> T_SIZE
@@ -72,6 +77,8 @@ int topCheck = 1;
 %precedence ERR_MISSOPRND
 
 %type<ival> expression
+%type<ival> comparison
+%type<ival> condition
 %type<sval> print1
 %type<sval> print2
 %type<sval> println1
@@ -83,15 +90,30 @@ int topCheck = 1;
 %%
 
 calculation: 
-	   | calculation line			{  }
+	| calculation line			{  }
 ;
 
 line: T_SEMICOLON
-    	  | expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
-	  | expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
-    	  | T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
-	  | print1 T_SEMICOLON			{ printf("print: %s", $1); }
-	  | println1 T_SEMICOLON		{ printf("print: %s", $1); }
+	| expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
+	| expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
+	| T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
+	| print1 T_SEMICOLON			{ printf("print: %s", $1); }
+	| println1 T_SEMICOLON		{ printf("print: %s", $1); }
+	| condition { if($1 == 1) printf("True\n"); else printf("False\n");  }
+;
+
+condition: T_IF T_LEFT comparison T_RIGHT statement1	{ $$ = $3; }
+
+;
+
+comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  }
+;
+
+statement1: statement2 T_CRIGHT
+;
+
+statement2: statement2 line
+	| T_CLEFT
 ;
 
 print1: print2 T_RIGHT				{ int len=0;
