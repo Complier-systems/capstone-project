@@ -36,8 +36,18 @@ extern void yyerror(const char* s);
 "if"		{return T_IF;}
 "=="		{return T_EQUAL;}
 "print"		{return T_PRINT;}
-"var"[1-9]	{yylval.ival = atoi(yytext[3]); return T_VAR;}
-"var"[10-26]	{yylval.ival = atoi(yytext[3]+yytext[4]); return T_VAR;}
+"println"	{return T_PRINTLN;}
+"hex"		{return T_HEXPRINT;}
+"var"[1-9]	{char* str = malloc(1);
+		 sprintf(str, "%c", yytext[3]);
+		 yylval.ival = atoi(str); 
+		 return T_VAR;
+		}
+"var"[10-26]	{char* str = malloc(2);
+		 sprintf(str, "%c%c", yytext[3], yytext[4]);
+		 yylval.ival = atoi(str); 
+		 return T_VAR;
+		}
 L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
 
 %%
