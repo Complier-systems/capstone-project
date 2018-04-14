@@ -55,6 +55,7 @@ int topCheck = 1;
 %token T_IF
 %token T_ASSIGN
 %token T_EQUAL
+%token T_LOOP
 %token<sval> T_STRING
 
 %left T_PLUS T_MINUS
@@ -68,6 +69,7 @@ int topCheck = 1;
 %type<ival> assignment
 %type<ival> comparison
 %type<ival> condition
+%type<ival> loop
 %type<sval> print1
 %type<sval> print2
 %type<sval> println1
@@ -88,6 +90,7 @@ line: T_SEMICOLON
 	| println1 T_SEMICOLON			{ printf("print: %s", $1); }
 	| condition 				{ if($1 == 1) printf("True\n"); else printf("False\n");  }
 	| assignment T_SEMICOLON		{ printf(" = %d\n",$1);}
+	| loop					{ printf("range : %d", $1);}
 ;
 
 assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
@@ -95,6 +98,11 @@ assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
 						 $$ = $3;
 						}
 ;
+
+loop: T_LOOP T_LEFT expression T_COMMA expression T_RIGHT statement1	{ if($5-$3 < 0) yyerror("Bad input"); else $$ = $5-$3;}
+
+;
+
 condition: T_IF T_LEFT comparison T_RIGHT statement1	{ $$ = $3; }
 
 ;
