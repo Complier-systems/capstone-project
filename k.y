@@ -9,8 +9,8 @@ extern int yyparse();
 extern FILE* yyin;
 
 void yyerror(const char* s);
-void setReg(int, int);
-int getReg(int);
+void setVar(int, int);
+int getVar(int);
 void setAcc(int);
 int getAcc(void);
 void push(int);
@@ -60,7 +60,9 @@ int topCheck = 1;
 %token T_CLEFT
 %token T_CRIGHT
 %token T_IF
+%token T_ASSIGN
 %token T_EQUAL
+%token T_LOOP
 %token<sval> T_STRING
 %token<ival> T_TOP
 %token<ival> T_SIZE
@@ -77,8 +79,10 @@ int topCheck = 1;
 %precedence ERR_MISSOPRND
 
 %type<ival> expression
+%type<ival> assignment
 %type<ival> comparison
 %type<ival> condition
+%type<ival> loop
 %type<sval> print1
 %type<sval> print2
 %type<sval> println1
@@ -94,12 +98,23 @@ calculation:
 ;
 
 line: T_SEMICOLON
-	| expression T_SEMICOLON 		{ if(topCheck){printf("= %i\n", $1); setAcc($1);} topCheck=1; }
 	| expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
 	| T_QUIT T_SEMICOLON 			{ printf("Program is shutting down..\n"); exit(0); }
 	| print1 T_SEMICOLON			{ printf("print: %s", $1); }
-	| println1 T_SEMICOLON		{ printf("print: %s", $1); }
-	| condition { if($1 == 1) printf("True\n"); else printf("False\n");  }
+	| println1 T_SEMICOLON			{ printf("print: %s", $1); }
+	| condition 				{ if($1 == 1) printf("True\n"); else printf("False\n");  }
+	| assignment T_SEMICOLON		{ printf(" = %d\n",$1);}
+	| loop					{ if($1 < 0){ yyerror("Bad input");} else {printf("range : %d\n", $1);} }
+;
+
+assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
+						 printf("var%d",$1);
+						 $$ = $3;
+						}
+;
+
+loop: T_LOOP T_LEFT expression T_COMMA expression T_RIGHT statement1	{ $$ = $5-$3; }
+
 ;
 
 condition: T_IF T_LEFT comparison T_RIGHT statement1	{ $$ = $3; }
@@ -213,10 +228,7 @@ hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
 
 expression: T_INT				{ $$ = $1; }
           | T_HEX                               { $$ = $1; }
-          | T_REG                               { $$ = getReg($1); }
-          | T_ACC                               { $$ = getAcc(); }
-          | T_TOP                               { if(!isEmpty()){$$ = getTop();}else{yyerror("Stack is empty");topCheck=0;} }
-          | T_SIZE                              { $$ = getSize(); }
+	  | T_VAR				{ $$ = getVar($1); }
 	  | expression T_PLUS expression	{ $$ = $1 + $3; }
 	  | expression T_MINUS expression	{ $$ = $1 - $3; }
 	  | expression T_MULTIPLY expression	{ $$ = $1 * $3; }
@@ -243,11 +255,11 @@ int main() {
 	return 0;
 }
 
-void setReg(int val, int ind) {
+void setVar(int val, int ind) {
   arr[ind] = val;
 }
 
-int getReg(int ind) {
+int getVar(int ind) {
   return arr[ind];
 }
 
