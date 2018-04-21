@@ -32,20 +32,9 @@ extern void yyerror(const char* s);
 		 return T_VAR;
 		}
 "if"		{return T_IF;}
+"endif"		{return T_ENDIF;}
+"else"		{return T_ELSE;}
 "=="		{return T_EQUAL;}
-"AND"           {return T_AND;}
-"OR"            {return T_OR;}
-"NOT"           {return T_NOT;}
-"exit"		{return T_QUIT;}
-"quit"		{return T_QUIT;}
-"$r"[A-Z]	{yylval.ival = yytext[2] - 'A'; return T_REG;}
-"SHOW"          {return T_SHOW;}
-"LOAD"          {return T_LOAD;}
-"$acc"          {return T_ACC;}
-"PUSH"          {return T_PUSH;}
-"POP"           {return T_POP;}
-"$top"          {return T_TOP;}
-"$size"         {return T_SIZE;}
 
 L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
 
@@ -54,7 +43,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "-"		{return T_MINUS;}
 "*"		{return T_MULTIPLY;}
 "/"		{return T_DIVIDE;}
-"\\"		{return T_MOD;}
+"%"		{return T_MOD;}
 "^"             {return T_POW;}
 "("		{return T_LEFT;}
 ")"		{return T_RIGHT;}
