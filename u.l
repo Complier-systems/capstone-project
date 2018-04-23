@@ -32,6 +32,8 @@ extern void yyerror(const char* s);
 		 return T_VAR;
 		}
 "if"		{return T_IF;}
+"endif"		{return T_ENDIF;}
+"else"		{return T_ELSE;}
 "=="		{return T_EQUAL;}
 
 L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
@@ -41,7 +43,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "-"		{return T_MINUS;}
 "*"		{return T_MULTIPLY;}
 "/"		{return T_DIVIDE;}
-"\\"		{return T_MOD;}
+"%"		{return T_MOD;}
 "^"             {return T_POW;}
 "("		{return T_LEFT;}
 ")"		{return T_RIGHT;}

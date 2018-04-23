@@ -44,7 +44,7 @@ int topCheck = 1;
 %token<ival> T_HEX
 %token<ival> T_VAR
 %token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_MOD T_POW T_LEFT T_RIGHT
-%token T_AND T_OR T_NOT
+%token<ival> T_REG
 %token T_PRINT
 %token T_PRINTLN
 %token T_HEXPRINT
@@ -53,6 +53,8 @@ int topCheck = 1;
 %token T_CLEFT
 %token T_CRIGHT
 %token T_IF
+%token T_ENDIF
+%token T_ELSE
 %token T_ASSIGN
 %token T_EQUAL
 %token T_LOOP
@@ -62,13 +64,12 @@ int topCheck = 1;
 %left T_MULTIPLY T_DIVIDE T_MOD
 %right T_NOT
 %precedence T_NEG T_POS
-%precedence ERR_MISSOPTOR
-%precedence ERR_MISSOPRND
+%right T_POW
 
 %type<ival> expression
 %type<ival> assignment
 %type<ival> comparison
-%type<ival> condition
+%type<ival> if
 %type<ival> loop
 %type<sval> print1
 %type<sval> print2
@@ -85,12 +86,11 @@ calculation:
 ;
 
 line: T_SEMICOLON
-	| expression %prec ERR_MISSOPTOR " " expression T_SEMICOLON{ yyerror("Missing operator"); }
-	| print1 T_SEMICOLON			{ printf("print: %s", $1); }
-	| println1 T_SEMICOLON			{ printf("print: %s", $1); }
-	| condition 				{ if($1 == 1) printf("True\n"); else printf("False\n");  }
+	| print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
+	| println1 T_SEMICOLON			{ printf("print: %s\n", $1); }
+	| if 					{ if($1 == 1) printf("True\n"); else printf("False\n");  }
 	| assignment T_SEMICOLON		{ printf(" = %d\n",$1);}
-	| loop					{ printf("range : %d", $1);}
+	| loop					{ if($1 < 0){ yyerror("Bad input");} else {printf("range : %d\n", $1);} }
 ;
 
 assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
@@ -99,15 +99,16 @@ assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
 						}
 ;
 
-loop: T_LOOP T_LEFT expression T_COMMA expression T_RIGHT statement1	{ if($5-$3 < 0) yyerror("Bad input"); else $$ = $5-$3;}
+loop: T_LOOP T_LEFT expression T_COMMA expression T_RIGHT statement1	{ $$ = $5-$3; }
 
 ;
 
-condition: T_IF T_LEFT comparison T_RIGHT statement1	{ $$ = $3; }
-
+if: T_IF T_LEFT comparison T_RIGHT statement1		{ $$ = $3; printf("Unsucces! %d\n",$$); }
+	|T_IF T_LEFT comparison T_RIGHT statement1 T_ELSE statement1		{ $$ = $3; printf("Succes!\n");}
+	
 ;
 
-comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  }
+comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  printf("%d %d %d\n",$1,$3,$$);}
 ;
 
 statement1: statement2 T_CRIGHT
@@ -214,14 +215,16 @@ hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
 
 expression: T_INT				{ $$ = $1; }
           | T_HEX                               { $$ = $1; }
-	  | T_VAR				{ $$ = $1; }
+	  | T_VAR				{ $$ = getVar($1); }
 	  | expression T_PLUS expression	{ $$ = $1 + $3; }
 	  | expression T_MINUS expression	{ $$ = $1 - $3; }
 	  | expression T_MULTIPLY expression	{ $$ = $1 * $3; }
           | expression T_DIVIDE expression	{ $$ = $1 / $3; }
           | expression T_MOD expression	        { $$ = $1 % $3; }
+          | expression T_POW expression        	{ $$ = (int)pow ($1, $3); }
           | T_MINUS expression %prec T_NEG      { $$ = -$2; }
 	  | T_PLUS expression %prec T_POS       { $$ = $2; }
+	  | T_NOT expression	                { $$ = ~$2; }
 	  | T_LEFT expression T_RIGHT		{ $$ = $2; }
 ;
 
