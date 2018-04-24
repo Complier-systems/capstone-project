@@ -8,6 +8,28 @@ extern int yylex();
 extern int yyparse();
 extern FILE* yyin;
 
+#define MAXNODE 6
+#define INIT_NUM 0
+#define ASSIGN_NUM 1
+#define LOOP_NUM 2
+#define CONDITION_NUM 3
+#define PRINT_NUM 4
+#define PRINTLN_NUM 5
+
+struct Node
+{
+   int data;
+   int size;
+   struct Node *next;
+}*top = NULL;
+
+typedef struct stringNode {
+	char* str;
+	int seq;
+	int num;
+	struct stringNode* next;
+} str_node;
+
 void yyerror(const char* s);
 void setVar(int, int);
 int getVar(int);
@@ -20,18 +42,24 @@ int isEmpty();
 int getTop();
 double pow(double, double);
 char*  itoa( int value, char * str, int base );
-
-struct Node
-{
-   int data;
-   int size;
-   struct Node *next;
-}*top = NULL;
+str_node* createNode(char*, int, int);
+void appendNode(str_node*);
+void printNodeList();
+void initialize();
+void convertAssignment();
+void convertLoop();
+void convertCondition();
+void convertPrint();
+void convertPrintln();
 
 int size = 0;
 int arr[26] = {0};
 int acc = 0;
 int topCheck = 1;
+
+str_node* nodes[MAXNODE];
+str_node* head = NULL;
+int cmd_seq = 0;
 
 %}
 
@@ -68,8 +96,8 @@ int topCheck = 1;
 
 %type<ival> expression
 %type<ival> assignment
-%type<ival> comparison
-%type<ival> condition
+%type<ival> if_comparison
+%type<ival> loop_comparison
 %type<ival> if
 %type<ival> loop
 %type<sval> print1
@@ -83,13 +111,13 @@ int topCheck = 1;
 %%
 
 calculation: 
-	| calculation line			{  }
+	| calculation line			{ /*printf("A COMMAND\n");*/ }
 ;
 
 line: T_SEMICOLON
-	| print1 T_SEMICOLON			{ printf("print: %s", $1); }
-	| println1 T_SEMICOLON			{ printf("print: %s", $1); }
-	| condition 				{ if($1 == 1) printf("True\n"); else printf("False\n");  }
+	| print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
+	| println1 T_SEMICOLON			{ printf("print: %s\n", $1); }
+	| if 					{ if($1 == 1) printf("True\n"); else printf("False\n");  /*convertCondition();*/}
 	| assignment T_SEMICOLON		{ printf(" = %d\n",$1);}
 	| loop					{ if($1 < 0){ yyerror("Bad input");} else {printf("range : %d\n", $1);} }
 ;
@@ -97,32 +125,30 @@ line: T_SEMICOLON
 assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
 						 printf("var%d",$1);
 						 $$ = $3;
+						 /*convertAssignment();*/
 						}
 ;
 
-loop: T_LOOP T_LEFT expression T_COMMA expression T_RIGHT statement1	{ $$ = $5-$3; }
+loop: T_LOOP T_LEFT loop_comparison T_RIGHT statement1	{ $$ = $3; }
 
 ;
 
-condition: if else	{ $$ = $1; }
+loop_comparison: expression T_COMMA expression		{ $$ = $3-$1; printf("LOOP\n");}
 
 ;
 
-if: T_IF T_LEFT comparison T_RIGHT statement1		{ $$ = $3; }
-
+if: T_IF T_LEFT if_comparison T_RIGHT statement1		{ $$ = $3; printf("Unsucces! %d\n",$$); }
+	|T_IF T_LEFT if_comparison T_RIGHT statement1 T_ELSE statement1		{ $$ = $3; printf("Succes!\n");}
+	
 ;
 
-else: T_ENDIF T_SEMICOLON
-	| T_ELSE statement1
-;
-
-comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  }
+if_comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  printf("%d %d %d\n",$1,$3,$$);}
 ;
 
 statement1: statement2 T_CRIGHT
 ;
 
-statement2: statement2 line
+statement2: statement2 line			{ printf("HERE!!\n"); }
 	| T_CLEFT
 ;
 
@@ -238,12 +264,43 @@ expression: T_INT				{ $$ = $1; }
 
 %%
 
-int main() {
-	yyin = stdin;
-	printf("> ");
-	do { 
+int main(int argc, char** argv) {
+
+	initialize();
+
+	if (argc > 1)
+	{
+		FILE *file;
+		file = fopen(argv[1], "r");
+
+		if (!file)
+		{
+
+			fprintf(stderr, "failed open");
+			exit(1);
+
+		}
+
+		yyin=file;
+
+	    //printf("success open %s\n", argv[1]);
+
+	}
+	else
+	{
+
+	    printf("no input file\n");
+	    exit(1);
+
+	}
+
+	yyparse();
+
+	//yyin = stdin;
+	//printf("> ");
+	/*do { 
 		yyparse();
-	} while(!feof(yyin));
+	} while(!feof(yyin));*/
 
 	return 0;
 }
@@ -317,7 +374,132 @@ int isEmpty() //check stack whether empty or not
 		return 0;
 }
 
+str_node* createNode(char* str, int seq, int num)
+{
+	str_node* node = (str_node*)malloc(sizeof(str_node));
+	node->str = str;
+	node->seq = seq;
+	node->num = num; 
+	node->next = NULL;
+	return node;
+}
+
+void appendNode(str_node* node)
+{
+	str_node* ptr;
+
+	if(head == NULL){
+		head = node;
+	}
+	else {
+		ptr = head;
+		while(ptr->next){
+			ptr = ptr->next;
+		}
+		ptr->next = node;
+	}
+}
+
+void printNodeList()
+{
+	str_node* ptr;
+
+	ptr = head;
+	while(ptr){
+		printf("%s", ptr->str);
+		ptr = ptr->next;
+	}
+}
+
 void yyerror(const char* s) //show error messages
 {
 	fprintf(stderr, "Parse error: %s\n", s);
 }
+
+void initialize()
+{
+	/*for(int i = 0; i < MAXNODE; i++){
+		nodes[i] = createNode("head", -1, i);
+	}*/
+
+	char* dataBuf = malloc(1000);
+	char* bssBuf = malloc(1000);
+	char* textBuf = malloc(1000);
+	
+	char* tmpBuf;
+
+	snprintf(dataBuf, 1000, "section .data\n\n");
+	appendNode(createNode(dataBuf, cmd_seq, INIT_NUM));
+	cmd_seq++;
+
+	snprintf(bssBuf, 1000, "segment .bss\n\n");
+	for(int i = 1; i <= 26; i++) {
+		tmpBuf = malloc(1000);
+		snprintf(tmpBuf, 1000, "\tvar%d resb 8\n", i);
+		strcat(bssBuf, tmpBuf);
+		free(tmpBuf);
+	}
+	appendNode(createNode(bssBuf, cmd_seq, INIT_NUM));
+	cmd_seq++;
+
+	snprintf(textBuf, 1000, "section .text\n\nglobal _start\n\n_start:\n\n");
+	appendNode(createNode(textBuf, cmd_seq, INIT_NUM));
+	cmd_seq++;
+
+	//printf("%s%s%s", dataBuf, bssBuf, textBuf);
+
+	/*for(int i = 0; i < MAXNODE; i++){
+		printf("%s %d %d\n", nodes[i]->str, nodes[i]->seq, nodes[i]->num);
+	}*/
+	
+	printNodeList();
+}
+
+void convertAssignment()
+{
+	/*mov     eax, %s
+	sub     eax, '0'
+	mov     ebx, [y]
+	sub     ebx, '0'
+	add     eax, ebx
+	add     eax, '0'
+
+	mov     [sum], eax*/
+	printf("var = expr + expr;\n");
+}
+
+void convertLoop()
+{
+	char* loopBuf1 = malloc(1000);
+	char* loopBuf2 = malloc(1000);
+	char* loopBuf3 = malloc(1000);
+
+	printf("loop(expr,expr){...}\n");
+	
+	snprintf(loopBuf1, 1000, "\tmov ecx, %d\nl%d:\n", 10, 1);
+	
+	snprintf(loopBuf3, 1000, "loop l%d\n", 1);
+
+}
+
+void convertCondition()
+{
+	printf("if(expr==expr){...}\n");
+}
+
+void convertPrint()
+{
+	printf("print(...);\n");
+}
+
+void convertPrintln()
+{
+	printf("println(...);\n");
+}
+
+
+
+
+
+
+

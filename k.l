@@ -52,8 +52,8 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 ";"		{return T_SEMICOLON;}
 "="		{return T_ASSIGN;}
 
-[ \t\v\f]	{}
-[\n]		{printf("\n> ");}
+[ \t\v\f\n]	{}
+
 .		{printf("Bad character\n");}
 
 %%
