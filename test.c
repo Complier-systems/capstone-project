@@ -12,3 +12,11 @@ loop (var1, 5+5) {
 }
 print ("Sum of even number from 0-9 is ");
 println (var2);
+
+if(5==10) {
+	loop(var2, 20) {
+	print(5);
+	}
+}
+
+println ("TEST");
