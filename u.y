@@ -8,20 +8,13 @@ extern int yylex();
 extern int yyparse();
 extern FILE* yyin;
 
-#define MAXNODE 6
 #define INIT_NUM 0
 #define ASSIGN_NUM 1
 #define LOOP_NUM 2
-#define CONDITION_NUM 3
+#define COND_NUM 3
 #define PRINT_NUM 4
 #define PRINTLN_NUM 5
-
-struct Node
-{
-   int data;
-   int size;
-   struct Node *next;
-}*top = NULL;
+#define RET_NUM 6
 
 typedef struct stringNode {
 	char* str;
@@ -30,37 +23,49 @@ typedef struct stringNode {
 	struct stringNode* next;
 } str_node;
 
+typedef struct stackNode
+{
+    int data;
+    struct stackNode* next;
+} s_node;
+
 extern int yyget_lineno  (void);
 void yyerror(const char* s);
 void setVar(int, int);
 int getVar(int);
-void setAcc(int);
-int getAcc(void);
-void push(int);
-int pop();
-int getSize();
-int isEmpty();
-int getTop();
+s_node* createStackNode(int);
+int isEmpty(s_node*);
+void push(s_node**, int);
+int pop(s_node**);
+int peek(s_node*);
 double pow(double, double);
 char*  itoa( int value, char * str, int base );
 str_node* createNode(char*, int, int);
-void appendNode(str_node*);
-void printNodeList();
+void appendNode(str_node**, str_node*);
+void printNodeList(str_node**);
 void initialize();
 void convertAssignment();
-void convertLoop();
-void convertCondition();
+void convertLoop(int);
+void convertCondition(int);
 void convertPrint();
 void convertPrintln();
+s_node* createStackNode(int);
+int isEmpty(s_node*);
+void push(s_node**, int);
+int pop(s_node**);
+int peek(s_node*);
 
 int size = 0;
 int arr[26] = {0};
-int acc = 0;
 int topCheck = 1;
 
-str_node* nodes[MAXNODE];
 str_node* head = NULL;
+str_node* const_head = NULL;
 int cmd_seq = 0;
+int label_seq = 1;
+int str_seq = 1;
+
+s_node* root = NULL;
 
 %}
 
@@ -124,7 +129,7 @@ semi_statement:
 	print1 T_SEMICOLON			{ printf("print: %s\n", $1); }
 	| println1 T_SEMICOLON			{ printf("print: %s\n", $1); }
 	| assignment T_SEMICOLON		{ printf(" = %d\n",$1);}
-	| error					{ yyerror("Missing \';\'");}
+	| error					{ yyerror("Missing \';\'"); exit(0);}
 ;
 
 nonsemi_statement:
@@ -135,39 +140,47 @@ nonsemi_statement:
 assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
 						 printf("var%d",$1);
 						 $$ = $3;
-						 /*convertAssignment();*/
+						 convertAssignment();
 						}
 ;
 
-loop: T_LOOP T_LEFT loop_comparison T_RIGHT statement1	{ $$ = $3; }
-	|T_LOOP T_LEFT loop_comparison error		{yyerror("Missing \')\'");}
-	|T_LOOP error					{yyerror("Missing \'(\'");}
+loop: T_LOOP T_LEFT loop_comparison T_RIGHT statement1	{ $$ = $3; printf("CLOSE LOOP\n"); convertLoop(2); }
+	|T_LOOP T_LEFT loop_comparison error		{ char* str = malloc(50);
+							sprintf(str, "Missing \')\' (line no. %d)\n",yyget_lineno());
+							yyerror(str); 
+							exit(0);
+							}
+	|T_LOOP error					{ char* str = malloc(50);
+							sprintf(str, "Missing \'(\' (line no. %d)\n",yyget_lineno());
+							yyerror(str); 
+							exit(0);
+							}
+;
+
+loop_comparison: expression T_COMMA expression		{ $$ = $3-$1; printf("OPEN LOOP\n"); convertLoop(1); }
 
 ;
 
-loop_comparison: expression T_COMMA expression		{ $$ = $3-$1; printf("LOOP\n");}
-
-;
-
-if: T_IF T_LEFT if_comparison T_RIGHT statement1		{ $$ = $3; printf("Unsucces! %d\n",$$); }
-	|T_IF T_LEFT if_comparison T_RIGHT statement1 T_ELSE statement1		{ $$ = $3; printf("Succes!\n");}
+if: T_IF T_LEFT if_comparison T_RIGHT statement1		{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2); }
+	|T_IF T_LEFT if_comparison T_RIGHT statement1 T_ELSE statement1		{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(2); }
 	
 ;
 
-if_comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  printf("%d %d %d\n",$1,$3,$$);}
+if_comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1); }
 ;
 
 statement1: statement2 T_CRIGHT
 ;
 
-statement2: statement2 line			{ printf("HERE!!\n"); }
+statement2: statement2 line			{ /*printf("HERE!!\n");*/ }
 	| T_CLEFT
 ;
 
 print1: print2 T_RIGHT				{ int len=0;
 						len = strlen($1);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s", $1); }
+						sprintf($$, "%s", $1); 
+						convertPrint(); }
 ;
 
 print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
@@ -186,7 +199,11 @@ print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
 	| print2 T_COMMA T_STRING		{ int len=0;
 						len = strlen($1) + strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $3); }
+						sprintf($$, "%s%s", $1, $3);
+						char* strBuf = malloc(1000);
+						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+						str_seq++;
+						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
 	| T_PRINT T_LEFT expression		{ char* snum = malloc(30);
 						snprintf (snum, 30, "%d", $3);
@@ -204,7 +221,11 @@ print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
 	| T_PRINT T_LEFT T_STRING		{ int len=0;
 						len = strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3); }
+						sprintf($$, "%s", $3); 
+						char* strBuf = malloc(1000);
+						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+						str_seq++;
+						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 ;
 
 println1: println2 T_RIGHT			{ int len=0;
@@ -229,7 +250,11 @@ println2: println2 T_COMMA expression         	{ char* snum = malloc(30);
 	| println2 T_COMMA T_STRING		{ int len=0;
 						len = strlen($1) + strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $3); }
+						sprintf($$, "%s%s", $1, $3);
+						char* strBuf = malloc(1000);
+						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+						str_seq++;
+						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
 	| T_PRINTLN T_LEFT expression		{ char* snum = malloc(30);
 						snprintf (snum, 30, "%d", $3);
@@ -247,7 +272,11 @@ println2: println2 T_COMMA expression         	{ char* snum = malloc(30);
 	| T_PRINTLN T_LEFT T_STRING		{ int len=0;
 						len = strlen($3);
 						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3); }
+						sprintf($$, "%s", $3);
+						char* strBuf = malloc(1000);
+						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+						str_seq++;
+						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 ;
 
 hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
@@ -284,7 +313,6 @@ int main(int argc, char** argv) {
 	{
 		FILE *file;
 		file = fopen(argv[1], "r");
-
 		if (!file)
 		{
 
@@ -292,18 +320,12 @@ int main(int argc, char** argv) {
 			exit(1);
 
 		}
-
 		yyin=file;
-
-	    //printf("success open %s\n", argv[1]);
-
 	}
 	else
 	{
-
 	    printf("no input file\n");
 	    exit(1);
-
 	}
 
 	yyparse();
@@ -314,12 +336,28 @@ int main(int argc, char** argv) {
 		yyparse();
 	} while(!feof(yyin));*/
 
+	printf("ASSEMBLY CODE:\n\n");
+	
+	char* retBuf = malloc(1000);
+	snprintf(retBuf, 1000, "\tmov\teax, 1\n\tint\t0x80\n\n");
+	appendNode(&head, createNode(retBuf, cmd_seq, RET_NUM));
+	cmd_seq++;		
+	char* dataBuf = malloc(1000);
+	snprintf(dataBuf, 1000, "section .data\n");
+	appendNode(&head, createNode(dataBuf, cmd_seq, INIT_NUM));
+	cmd_seq++;
+
+	printNodeList(&head);
+	printNodeList(&const_head);
+
 	return 0;
 }
+
 void yyerror(const char* s) //show error messages
 {
-	fprintf(stderr, "Parse error: %s (line no. %d)\n", s, yyget_lineno());
+	fprintf(stderr, "Parse error: %s\n", s);
 }
+
 void setVar(int val, int ind) {
   arr[ind] = val;
 }
@@ -328,65 +366,44 @@ int getVar(int ind) {
   return arr[ind];
 }
 
-void setAcc(int val) {
-  acc = val;
-}
-
-int getAcc() {
-  return acc;
-}
-
-void push(int value)
+s_node* createStackNode(int data)
 {
-   struct Node *newNode;
-   newNode = (struct Node*)malloc(sizeof(struct Node));
-   newNode->data = value;
-   newNode->size = ++size;  
-   if(isEmpty())
-      newNode->next = NULL;
-   else
-      newNode->next = top;
-   top = newNode;
+    s_node* stackNode = (s_node*)malloc(sizeof(s_node));
+    stackNode->data = data;
+    stackNode->next = NULL;
+    return stackNode;
 }
-
-int pop()
+ 
+int isEmpty(s_node* root)
 {
-   if(isEmpty())
-      return 0;
-   else{
-      struct Node *temp = top;
-      int val = temp->data;
-      top = temp->next;
-      free(temp);
-      return val;
-   }
+    return !root;
 }
-
-int getTop() 
+ 
+void push(s_node** root, int data)
 {
-   if(isEmpty())
-      printf("\nStack is Empty!!!\n");
-   else{
-      return top->data;
-   }
+    s_node* stackNode = createStackNode(data);
+    stackNode->next = *root;
+    *root = stackNode;
+    printf("%d pushed to stack\n", data);
 }
-
-int getSize() //check stack whether empty or not
+ 
+int pop(s_node** root)
 {
-	if(isEmpty())
-		return 0;
-	else{
-		struct Node *temp = top;
-		return(temp->size);
-	}
+    if (isEmpty(*root))
+        return -1;
+    s_node* temp = *root;
+    *root = (*root)->next;
+    int popped = temp->data;
+    free(temp);
+ 
+    return popped;
 }
-
-int isEmpty() //check stack whether empty or not
+ 
+int peek(s_node* root)
 {
-	if(top == NULL)
-		return 1;
-	else
-		return 0;
+    if (isEmpty(root))
+        return -1;
+    return root->data;
 }
 
 str_node* createNode(char* str, int seq, int num)
@@ -399,15 +416,15 @@ str_node* createNode(char* str, int seq, int num)
 	return node;
 }
 
-void appendNode(str_node* node)
+void appendNode(str_node** head, str_node* node)
 {
 	str_node* ptr;
 
-	if(head == NULL){
-		head = node;
+	if((*head) == NULL){
+		(*head) = node;
 	}
 	else {
-		ptr = head;
+		ptr = (*head);
 		while(ptr->next){
 			ptr = ptr->next;
 		}
@@ -415,11 +432,11 @@ void appendNode(str_node* node)
 	}
 }
 
-void printNodeList()
+void printNodeList(str_node** head)
 {
 	str_node* ptr;
 
-	ptr = head;
+	ptr = (*head);
 	while(ptr){
 		printf("%s", ptr->str);
 		ptr = ptr->next;
@@ -428,78 +445,98 @@ void printNodeList()
 
 void initialize()
 {
-	/*for(int i = 0; i < MAXNODE; i++){
-		nodes[i] = createNode("head", -1, i);
-	}*/
 
-	char* dataBuf = malloc(1000);
 	char* bssBuf = malloc(1000);
 	char* textBuf = malloc(1000);
-	
+
 	char* tmpBuf;
-
-	snprintf(dataBuf, 1000, "section .data\n\n");
-	appendNode(createNode(dataBuf, cmd_seq, INIT_NUM));
-	cmd_seq++;
-
-	snprintf(bssBuf, 1000, "segment .bss\n\n");
+	snprintf(bssBuf, 1000, "segment .bss\n");
 	for(int i = 1; i <= 26; i++) {
 		tmpBuf = malloc(1000);
 		snprintf(tmpBuf, 1000, "\tvar%d resb 8\n", i);
 		strcat(bssBuf, tmpBuf);
 		free(tmpBuf);
 	}
-	appendNode(createNode(bssBuf, cmd_seq, INIT_NUM));
+	strcat(bssBuf, "\n");
+	appendNode(&head, createNode(bssBuf, cmd_seq, INIT_NUM));
 	cmd_seq++;
 
-	snprintf(textBuf, 1000, "section .text\n\nglobal _start\n\n_start:\n\n");
-	appendNode(createNode(textBuf, cmd_seq, INIT_NUM));
+	snprintf(textBuf, 1000, "section .text\n\nglobal _start\n\n_start:\n");
+	appendNode(&head, createNode(textBuf, cmd_seq, INIT_NUM));
 	cmd_seq++;
 
-	//printf("%s%s%s", dataBuf, bssBuf, textBuf);
-
-	/*for(int i = 0; i < MAXNODE; i++){
-		printf("%s %d %d\n", nodes[i]->str, nodes[i]->seq, nodes[i]->num);
-	}*/
-	
-	printNodeList();
 }
 
 void convertAssignment()
 {
-	/*mov     eax, %s
-	sub     eax, '0'
-	mov     ebx, [y]
-	sub     ebx, '0'
-	add     eax, ebx
-	add     eax, '0'
-
-	mov     [sum], eax*/
-	printf("var = expr + expr;\n");
+	char* assignBuf1 = malloc(1000);
+	
+	snprintf(assignBuf1, 1000, "\tmov\teax, '5'\n\tsub\teax, '0'\n\tmov\tebx, '3'\n\tsub\tebx, '0'\n\tadd\teax, ebx\n\tadd\teax, '0'\n\tmov\t[var1], eax\n\n");
+	appendNode(&head, createNode(assignBuf1, cmd_seq, ASSIGN_NUM));
+	cmd_seq++;
+	
+	//printf("var = expr + expr;\n");
 }
 
-void convertLoop()
+void convertLoop(int sec_num)
 {
 	char* loopBuf1 = malloc(1000);
 	char* loopBuf2 = malloc(1000);
-	char* loopBuf3 = malloc(1000);
 
-	printf("loop(expr,expr){...}\n");
-	
-	snprintf(loopBuf1, 1000, "\tmov ecx, %d\nl%d:\n", 10, 1);
-	
-	snprintf(loopBuf3, 1000, "loop l%d\n", 1);
+	if(sec_num == 1){
+		snprintf(loopBuf1, 1000, "\tmov\tecx, %d\n\nl%d:\n", 10, label_seq);
+		appendNode(&head, createNode(loopBuf1, cmd_seq, LOOP_NUM));
+		push(&root, label_seq);
+		cmd_seq++;
+		label_seq++;
+	}
+	else if(sec_num == 2){
+		snprintf(loopBuf2, 1000, "\tloop\tl%d\n\n", pop(&root));
+		appendNode(&head, createNode(loopBuf2, cmd_seq, LOOP_NUM));
+		cmd_seq++;
+	}
+	else{
+		printf("Invalid section number\n");
+		exit(1);
+	}
 
+	//printf("loop(expr,expr){...}\n");
 }
 
-void convertCondition()
+void convertCondition(int sec_num)
 {
-	printf("if(expr==expr){...}\n");
+	char* condBuf1 = malloc(1000);
+	char* condBuf2 = malloc(1000);
+
+	if(sec_num == 1){
+		snprintf(condBuf1, 1000, "\tmov\tedx, 0\n\tcmp\tedx, 0\n\tjne\tl%d\n\n", label_seq);
+		appendNode(&head, createNode(condBuf1, cmd_seq, COND_NUM));
+		push(&root, label_seq);
+		cmd_seq++;
+		label_seq++;
+	}
+	else if(sec_num == 2){
+		snprintf(condBuf2, 1000, "l%d:\n", pop(&root));
+		appendNode(&head, createNode(condBuf2, cmd_seq, COND_NUM));
+		cmd_seq++;
+	}
+	else{
+		printf("Invalid section number\n");
+		exit(1);
+	}
+
+	//printf("if(expr==expr){...}\n");
 }
 
 void convertPrint()
 {
-	printf("print(...);\n");
+	char* printBuf1 = malloc(1000);
+
+	snprintf(printBuf1, 1000, "\tmov\tecx, 'T'\n\tmov\tedx, 1\n\tmov\tebx, 1\n\tmov\teax, 4\n\tint\t0x80\n\n");
+	appendNode(&head, createNode(printBuf1, cmd_seq, PRINT_NUM));
+	cmd_seq++;
+	
+	//printf("print(...);\n");
 }
 
 void convertPrintln()
