@@ -9,6 +9,8 @@ L		[a-zA-Z_]
 #define YY_DECL int yylex()
 
 extern void yyerror(const char* s);
+extern void yyset_lineno (int);
+int count = 1;
 
 %}
 
@@ -53,7 +55,9 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "="		{return T_ASSIGN;}
 
 [ \t\v\f]	{}
-[\n]		{printf("\n> ");}
+[\n]		{yyset_lineno(count++);}
+
+
 .		{printf("Bad character\n");}
 
 %%
