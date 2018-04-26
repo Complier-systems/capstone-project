@@ -58,6 +58,6 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 [\n]		{yyset_lineno(count++);}
 
 
-.		{printf("Bad character\n");}
+.		{return T_UNKNOW;}
 
 %%
