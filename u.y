@@ -30,6 +30,7 @@ typedef struct stackNode
 } s_node;
 
 extern int yyget_lineno  (void);
+extern int yylineno;
 void yyerror(const char* s);
 void setVar(int, int);
 int getVar(int);
@@ -151,12 +152,12 @@ assignment: T_VAR T_ASSIGN expression		{setVar($3, $1);
 
 loop: T_LOOP T_LEFT loop_comparison T_RIGHT statement1	{ $$ = $3; printf("CLOSE LOOP\n"); convertLoop(2); }
 	|T_LOOP T_LEFT loop_comparison error		{ char* str = malloc(50);
-							sprintf(str, "Missing \')\' (line no. %d)\n",yyget_lineno());
+							sprintf(str, "\'loop\': Missing \')\' (line no. %d)\n",yyget_lineno());
 							yyerror(str); 
 							exit(0);
 							}
 	|T_LOOP error					{ char* str = malloc(50);
-							sprintf(str, "Missing \'(\' (line no. %d)\n",yyget_lineno());
+							sprintf(str, "\'loop\': Missing \'(\' (line no. %d)\n",yyget_lineno());
 							yyerror(str); 
 							exit(0);
 							}
@@ -179,21 +180,26 @@ loop_comparison: expression T_COMMA expression		{ $$ = $3-$1; printf("OPEN LOOP\
 if: T_IF T_LEFT if_comparison T_RIGHT statement1		{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2); }
 	|T_IF T_LEFT if_comparison T_RIGHT statement1 T_ELSE statement1		{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(2); }
 	|T_IF T_LEFT loop_comparison error		{ char* str = malloc(50);
-							sprintf(str, "Missing \')\' (line no. %d)\n",yyget_lineno());
+							sprintf(str, "\'if\': Missing \')\' (line no. %d)\n",yyget_lineno());
 							yyerror(str); 
 							exit(0);
 							}
 	|T_IF error					{ char* str = malloc(50);
-							sprintf(str, "Missing \'(\' (line no. %d)\n",yyget_lineno());
+							sprintf(str, "\'if\': Missing \'(\' (line no. %d)\n",yyget_lineno());
 							yyerror(str); 
 							exit(0);
 							}
+	| T_IF T_UNKNOW				{ char* str = malloc(50);
+						sprintf(str, "Unknow command (line no. %d)\n",yyget_lineno());
+						yyerror(str); 
+						exit(0);
+						}
 	
 ;
 
 if_comparison: expression T_EQUAL expression	{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1); }
 	| expression error expression		{ char* str = malloc(50);
-						sprintf(str, "Unknow operation (line no. %d)\n",yyget_lineno());
+						sprintf(str, "\'if\': Unknow operation (line no. %d)\n",yyget_lineno());
 						yyerror(str); 
 						exit(0);
 						}
@@ -212,6 +218,16 @@ print1: print2 T_RIGHT				{ int len=0;
 						$$ = malloc(len + 1);
 						sprintf($$, "%s", $1); 
 						convertPrint(); }
+	| print2 T_COMMA T_RIGHT		{ char* str = malloc(50);
+						sprintf(str, "\'print\': Unexpected \',\' (line no. %d)\n",yylineno);
+						yyerror(str); 
+						exit(0);
+						}
+	| error					{ char* str = malloc(50);
+						sprintf(str, "\'print\': Missing \')\' (line no. %d)\n",yylineno);
+						yyerror(str); 
+						exit(0);
+						}
 ;
 
 print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
@@ -257,9 +273,28 @@ print2: print2 T_COMMA expression         	{ char* snum = malloc(30);
 						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
 						str_seq++;
 						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
-
+	| T_PRINT error				{ char* str = malloc(50);
+						sprintf(str, "\'print\': Missing \'(\' (line no. %d)\n",yylineno);
+						yyerror(str); 
+						exit(0);
+						}
+	/*| T_PRINT expression			{ char* str = malloc(50);
+						sprintf(str, "\'print\': Missing \'(\' (line no. %d)\n",yyget_lineno());
+						yyerror(str); 
+						exit(0);
+						}
+	| T_PRINT hex				{ char* str = malloc(50);
+						sprintf(str, "\'print\': Missing \'(\' (line no. %d)\n",yyget_lineno());
+						yyerror(str); 
+						exit(0);
+						}
+	| T_PRINT T_STRING			{ char* str = malloc(50);
+						sprintf(str, "\'print\': Missing \'(' (line no. %d)\n",yyget_lineno());
+						yyerror(str); 
+						exit(0);
+						}*/
 	| T_PRINT T_UNKNOW			{ char* str = malloc(50);
-						sprintf(str, "Unknow command (line no. %d)\n",yyget_lineno());
+						sprintf(str, "Unknow command (line no. %d)\n",yylineno);
 						yyerror(str); 
 						exit(0);
 						}
@@ -319,6 +354,11 @@ println2: println2 T_COMMA expression         	{ char* snum = malloc(30);
 						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
 						str_seq++;
 						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
+	| T_PRINTLN error T_LEFT		{ char* str = malloc(50);
+						sprintf(str, "\'println\': Missing \'(\' (line no. %d)\n",yylineno);
+						yyerror(str); 
+						exit(0);
+						}
 	| T_PRINTLN T_UNKNOW 			{ char* str = malloc(50);
 						sprintf(str, "Unknow command (line no. %d)\n",yyget_lineno());
 						yyerror(str); 

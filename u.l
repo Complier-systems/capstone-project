@@ -13,7 +13,7 @@ extern void yyset_lineno (int);
 int count = 1;
 
 %}
-
+%option yylineno
 %%
 
 [0-9]+		{yylval.ival = atoi(yytext); return T_INT;}
@@ -55,7 +55,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "="		{return T_ASSIGN;}
 
 [ \t\v\f]	{}
-[\n]		{yyset_lineno(count++);}
+[\n]		{/*yyset_lineno(count++);*/}
 
 
 .		{return T_UNKNOW;}
