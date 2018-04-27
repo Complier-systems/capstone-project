@@ -10,7 +10,6 @@ L		[a-zA-Z_]
 
 extern void yyerror(const char* s);
 extern void yyset_lineno (int);
-int count = 1;
 
 %}
 %option yylineno
@@ -54,8 +53,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 ";"		{return T_SEMICOLON;}
 "="		{return T_ASSIGN;}
 
-[ \t\v\f]	{}
-[\n]		{/*yyset_lineno(count++);*/}
+[ \t\v\f\n]	{}
 
 
 .		{return T_UNKNOW;}
