@@ -5,10 +5,10 @@ loop (var1, 5+5) {
 		print ("The value of var1 (dec): ");
 		println (var1);
 		print ("The value of var1 (hex): ");
-		println (hex(var1));
+		println (hex (var1));
 		var2 = var2 + var1;
 	}
-	var1 = var1 + 1;
+	var1 = var1  1;
 }
 print ("Sum of even number from 0-9 is ");
 println (var2);
