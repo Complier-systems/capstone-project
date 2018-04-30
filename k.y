@@ -29,6 +29,7 @@ typedef struct stackNode
     struct stackNode* next;
 } s_node;
 
+extern int yylineno;
 void yyerror(const char* s);
 void setVar(int, int);
 int getVar(int);
@@ -99,6 +100,7 @@ s_node* int_stack = NULL;
 %token T_ASSIGN
 %token T_EQUAL
 %token T_LOOP
+%token T_UNKNOW
 %token<sval> T_STRING
 
 %left T_PLUS T_MINUS
@@ -123,399 +125,661 @@ s_node* int_stack = NULL;
 %start calculation
 
 %%
+default:
+	T_INT
 
+	| T_HEX
+
+	| T_VAR
+
+	| T_STRING
+
+;
 calculation: 
-	| calculation line									{ popAll(&int_stack); }
+	| calculation line								{ popAll(&int_stack); }
+;
+line: 
+	T_SEMICOLON
+	
+	| semi_statement									{ }
+
+	| nonsemi_statement								{ }
+
+;
+semi_statement:
+
+	print1 T_SEMICOLON								{ printf("print: %s\n", $1); }
+
+	| println1 T_SEMICOLON								{ printf("print: %s\n", $1); }
+
+	| assignment T_SEMICOLON							{ printf(" = %d\n",$1);}
+
+	| error										{ char* str = malloc(50);
+												sprintf(str, "Missing \';\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
 ;
 
-line: T_SEMICOLON
-	| print1 T_SEMICOLON									{ printf("print: %s\n", $1); }
-	| println1 T_SEMICOLON									{ printf("print: %s\n", $1); }
-	| if											{ if($1 == 1) printf("True\n"); else printf("False\n");  /*convertCondition();*/}
-	| assignment T_SEMICOLON								{ printf(" = %d\n",$1);}
-	| loop											{ if($1 < 0){ yyerror("Bad input");} else {printf("range : %d\n", $1);} }
+nonsemi_statement:
+
+	if 											{ if($1 == 1) printf("True\n"); else printf("False\n");  /*convertCondition();*/}
+
+	| loop										{ if($1 < 0){printf("range : 0\n");} else {printf("range : %d\n", $1);} }
 ;
 
-assignment: assign_var T_ASSIGN expression							{ setVar($3, $1);
+
+assignment: 
+	
+	assign_var T_ASSIGN expression						{ setVar($3, $1);
 												 $$ = $3;
 												 convertAssignment($1);
 												 showCmd = 0;
-												 int_counter = 0; }
+												 int_counter = 0; 
+												}
 ;
 
-assign_var: T_VAR										{ appendNode(&head, createNode("\tpushad\n\n", cmd_seq, ASSIGN_NUM));
+assign_var: 
+
+	T_VAR											{ appendNode(&head, createNode("\tpushad\n\n", cmd_seq, ASSIGN_NUM));
 												 cmd_seq++;
 												 showCmd = 1;
-												 int_counter = 0; }
+												 int_counter = 0; 
+												}
 ;
 
-loop: loop_token T_LEFT loop_comparison T_RIGHT statement1					{ $$ = $3; convertLoop(2, $3); /*printf("CLOSE LOOP\n");*/ }
+loop: 
+
+	loop_token T_LEFT loop_comparison T_RIGHT statement1			{ $$ = $3; convertLoop(2, $3); /*printf("CLOSE LOOP\n");*/ }
+
+	| loop_token T_LEFT loop_comparison error					{ char* str = malloc(50);
+												 sprintf(str, "\'loop\': Missing \')\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+	
+	| loop_token error								{ char* str = malloc(50);
+												 sprintf(str, "\'loop\': Missing \'(\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| loop_token T_UNKNOW								{ char* str = malloc(50);
+												 sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 
 ;
 
-loop_token: T_LOOP										{ showCmd = 1; int_counter = 0; }
+loop_token:
+		
+	T_LOOP										{ showCmd = 1; int_counter = 0; }
 
 ;
 
-loop_comparison: expression loopComma_token expression						{ $$ = $3-$1; convertLoop(1, $3-$1); /*printf("OPEN LOOP\n");*/ }
+loop_comparison:
+	
+	expression loopComma_token expression					{ $$ = $3-$1; convertLoop(1, $3-$1); /*printf("OPEN LOOP\n");*/ }
+	
+	| error										{ char* str = malloc(50);
+												 sprintf(str, "\'loop\': Missing parameter (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 
 ;
 
-loopComma_token: T_COMMA									{ char* loopCommaBuf = malloc(1000);
+loopComma_token: 
+	
+	T_COMMA										{ char* loopCommaBuf = malloc(1000);
 												 snprintf(loopCommaBuf, 1000, "\tpush\teax\n\n");
 												 appendNode(&head, createNode(loopCommaBuf, cmd_seq, -1));
 												 cmd_seq++; 
 												 showCmd = 1; 
-												 int_counter = 0; }
+												 int_counter = 0; 
+												}
 ;
 
-if: if_token T_LEFT if_comparison T_RIGHT statement1						{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2); showCmd = 0; int_counter = 0; }
-	|if_token T_LEFT if_comparison T_RIGHT statement1 T_ELSE statement1			{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(2); showCmd = 0; int_counter = 0; }
+if:
+	
+	if_token T_LEFT if_comparison T_RIGHT statement1			{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2); showCmd = 0; int_counter = 0; }
+	
+	|if_token T_LEFT if_comparison T_RIGHT statement1 else_token statement1	{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(4); showCmd = 0; int_counter = 0; }
+
+	| if_token T_LEFT if_comparison error					{ char* str = malloc(50);
+												 sprintf(str, "\'if\': Missing \')\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| if_token error									{ char* str = malloc(50);
+												 sprintf(str, "\'if\': Missing \'(\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| if_token T_UNKNOW								{ char* str = malloc(50);
+												 sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 	
 ;
 
-if_token: T_IF											{ showCmd = 1; int_counter = 0; }
+if_token:
+	
+	T_IF											{ showCmd = 1; int_counter = 0; }
 
 ;
 
-if_comparison: expression equal_token expression						{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1); }
+if_comparison:
+
+	expression equal_token expression						{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1); }
+
+	| expression error expression							{ char* str = malloc(50);
+												 sprintf(str, "\'if\': Unknow operation (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 
 ;
 
-equal_token: T_EQUAL										{ char* ifcmpBuf = malloc(1000);
+equal_token:
+
+	T_EQUAL										{ char* ifcmpBuf = malloc(1000);
 												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
 												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
 												 cmd_seq++; 
 												 showCmd = 1; 
-												 int_counter = 0; }
+												 int_counter = 0;
+												}
 ;
 
-statement1: statement2 T_CRIGHT	
+else_token:
+
+	T_ELSE										{ showCmd = 1; int_counter = 0; convertCondition(3); }
 
 ;
 
-statement2: statement2 line									{  }
-	| T_CLEFT
+statement1:
+
+	statement2 T_CRIGHT								{ }	
+
 ;
 
-print1: print2 T_RIGHT										{ int len=0;
+statement2:
+
+	statement2 line									{ }
+	
+	| T_CLEFT										{ }
+	
+	| error 										{ char* str = malloc(50);
+											 	 sprintf(str, "Missing \'{\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+;
+
+print1:
+
+	print2 T_RIGHT									{ int len=0;
 												 len = strlen($1);
 												 $$ = malloc(len + 1);
-												 sprintf($$, "%s", $1); }
+												 sprintf($$, "%s", $1); 
+												}
+
+	| print2 T_COMMA T_RIGHT							{ char* str = malloc(50);
+												 sprintf(str, "\'print()\': Unexpected \',\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| print2 error									{ char* str = malloc(50);
+												 sprintf(str, "\'print()\': Missing \')\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 ;
 
-print2: print2 printComma_token expression      { char* snum = malloc(30);
-						snprintf (snum, 30, "%d", $3);
-						int len=0;
-						len = strlen($1) + strlen(snum);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, snum);
-						free(snum); 
-						convertPrint(1, $3, -1); }
+print2:
 
-	| print2 printComma_token hex		{ int len=0;
-						len = strlen($1) + strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $3); }
+	print2 printComma_token expression      					{ char* snum = malloc(30);
+												 snprintf (snum, 30, "%d", $3);
+												 int len=0;
+												 len = strlen($1) + strlen(snum);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s%s", $1, snum);
+												 free(snum); 
+												 convertPrint(1, $3, -1); 
+												}
 
-	| print2 printComma_token T_STRING	{ int len=0;
-						len = strlen($1) + strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s%s", $1, $3);
-						char* strBuf = malloc(1000);
-						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
-						convertPrint(3, str_seq, strlen($3));
-						str_seq++;
-						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
+	| print2 printComma_token hex							{ int len=0;
+												 len = strlen($1) + strlen($3);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s%s", $1, $3); 
+												}
 
-	| print_token T_LEFT expression		{ char* snum = malloc(30);
-						snprintf (snum, 30, "%d", $3);
-						int len=0;
-						len = strlen(snum);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", snum); 
-						free(snum); 
-						convertPrint(1, $3, -1); }
+	| print2 printComma_token T_STRING						{ int len=0;
+												 len = strlen($1) + strlen($3);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s%s", $1, $3);
+												 char* strBuf = malloc(1000);
+												 snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+												 convertPrint(3, str_seq, strlen($3));
+												 str_seq++;
+												 appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); 
+												}
 
-	| print_token T_LEFT hex			{ int len=0;
-						len = strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3); }
+	| print_token T_LEFT expression						{ char* snum = malloc(30);
+												 snprintf (snum, 30, "%d", $3);
+												 int len=0;
+												 len = strlen(snum);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s", snum); 
+												 free(snum); 
+												 convertPrint(1, $3, -1);
+												}
 
-	| print_token T_LEFT T_STRING		{ int len=0;
-						len = strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3); 
-						char* strBuf = malloc(1000);
-						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
-						convertPrint(3, str_seq, strlen($3));
-						str_seq++;
-						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
+	| print_token T_LEFT hex							{ int len=0;
+												 len = strlen($3);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s", $3);
+												}
+
+	| print_token T_LEFT T_STRING							{ int len=0;
+												 len = strlen($3);
+												 $$ = malloc(len + 1);
+												 sprintf($$, "%s", $3); 
+												 char* strBuf = malloc(1000);
+												 snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+												 convertPrint(3, str_seq, strlen($3));
+												 str_seq++;
+												 appendNode(&const_head, createNode(strBuf, -1, INIT_NUM));
+												}
+
+	| print_token default								{ char* str = malloc(50);
+												 sprintf(str, "\'print()\': Missing \'(\' (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| print_token T_UNKNOW								{ char* str = malloc(50);
+												 sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| T_UNKNOW 										{ char* str = malloc(50);
+												 sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
+
+	| print_token error								{ char* str = malloc(50);
+												 sprintf(str, "print(): Parameter is required (line no. %d)\n",yylineno);
+												 yyerror(str); 
+												 exit(0);
+												}
 
 ;
 
-printComma_token: T_COMMA			{ char* commaTokenBuf = malloc(1000);
-						snprintf(commaTokenBuf, 1000, "\tpushad\n\n");
-						appendNode(&head, createNode(commaTokenBuf, cmd_seq, -1));
-						cmd_seq++;
-						showCmd = 1; 
-						int_counter = 0; }
+printComma_token:
+
+	T_COMMA										{ char* commaTokenBuf = malloc(1000);
+												 snprintf(commaTokenBuf, 1000, "\tpushad\n\n");
+												 appendNode(&head, createNode(commaTokenBuf, cmd_seq, -1));
+												 cmd_seq++;
+												 showCmd = 1; 
+												 int_counter = 0; 
+												}
+
 
 ;
 
-print_token: T_PRINT				{ char* printTokenBuf = malloc(1000);
-						snprintf(printTokenBuf, 1000, "\tpushad\n\n");
-						appendNode(&head, createNode(printTokenBuf, cmd_seq, -1));
-						cmd_seq++;
-						showCmd = 1; 
-						int_counter = 0; }
+print_token:
+
+	T_PRINT										{ char* printTokenBuf = malloc(1000);
+												 snprintf(printTokenBuf, 1000, "\tpushad\n\n");
+												 appendNode(&head, createNode(printTokenBuf, cmd_seq, -1));
+												 cmd_seq++;
+												 showCmd = 1; 
+												 int_counter = 0; 
+												}
 
 ;
 						
-println1: println2 T_RIGHT			{ int len=0;
-						len = strlen($1) + 1; // + 1 for newline
-						$$ = malloc(len + 1); // + 1 for terminal symbol "\0"
-						sprintf($$, "%s\n", $1); 
-						convertPrintln(); }
+println1:
+
+	println2 T_RIGHT									{ int len=0;
+												 len = strlen($1) + 1; // + 1 for newline
+												 $$ = malloc(len + 1); // + 1 for terminal symbol "\0"
+												 sprintf($$, "%s\n", $1); 
+												 convertPrintln(); 
+												}
+
+	| println2 T_COMMA T_RIGHT							{ char* str = malloc(50);
+												sprintf(str, "\'println()\': Unexpected \',\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| println2 error									{ char* str = malloc(50);
+												sprintf(str, "\'println()\': Missing \')\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
 ;
 
-println2: println2 printlnComma_token expression        	{ char* snum = malloc(30);
-								snprintf (snum, 30, "%d", $3);
-								int len=0;
-								len = strlen($1) + strlen(snum);
-								$$ = malloc(len + 1);
-								sprintf($$, "%s%s", $1, snum);
-								free(snum); 
-								convertPrint(1, $3, -1); }
+println2:
+	
+	println2 printlnComma_token expression        				{ char* snum = malloc(30);
+												snprintf (snum, 30, "%d", $3);
+												int len=0;
+												len = strlen($1) + strlen(snum);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s%s", $1, snum);
+												free(snum); 
+												convertPrint(1, $3, -1); 
+												}
 
-	| println2 printlnComma_token hex			{ int len=0;
-								len = strlen($1) + strlen($3);
-								$$ = malloc(len + 1);
-								sprintf($$, "%s%s", $1, $3); }
+	| println2 printlnComma_token hex						{ int len=0;
+												len = strlen($1) + strlen($3);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s%s", $1, $3); 
+												}
 
-	| println2 printlnComma_token T_STRING			{ int len=0;
-								len = strlen($1) + strlen($3);
-								$$ = malloc(len + 1);
-								sprintf($$, "%s%s", $1, $3);
-								char* strBuf = malloc(1000);
-								snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
-								convertPrint(3, str_seq, strlen($3));
-								str_seq++;
-								appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
+	| println2 printlnComma_token T_STRING					{ int len=0;
+												len = strlen($1) + strlen($3);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s%s", $1, $3);
+												char* strBuf = malloc(1000);
+												snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+												convertPrint(3, str_seq, strlen($3));
+												str_seq++;
+												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM));
+												}
 
-	| println_token T_LEFT expression		{ char* snum = malloc(30);
-							snprintf (snum, 30, "%d", $3);
-							int len=0;
-							len = strlen(snum);
-							$$ = malloc(len + 1);
-							sprintf($$, "%s", snum); 
-							free(snum); 
-							convertPrint(1, $3, -1); }
+	| println_token T_LEFT expression						{ char* snum = malloc(30);
+												snprintf (snum, 30, "%d", $3);
+												int len=0;
+												len = strlen(snum);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s", snum); 
+												free(snum); 
+												convertPrint(1, $3, -1); 
+												}
 
-	| println_token T_LEFT hex			{ int len=0;
-						len = strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3); }
+	| println_token T_LEFT hex							{ int len=0;
+												len = strlen($3);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s", $3);
+												}
 
-	| println_token T_LEFT T_STRING		{ int len=0;
-						len = strlen($3);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", $3);
-						char* strBuf = malloc(1000);
-						snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
-						convertPrint(3, str_seq, strlen($3));
-						str_seq++;
-						appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
+	| println_token T_LEFT T_STRING						{ int len=0;
+												len = strlen($3);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s", $3);
+												char* strBuf = malloc(1000);
+												snprintf(strBuf, 1000, "\tstr%d db \"%s\"\n", str_seq, $3);
+												convertPrint(3, str_seq, strlen($3));
+												str_seq++;
+												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM));
+												}
+
+	| println_token default								{ char* str = malloc(50);
+												sprintf(str, "\'println()\': Missing \'(\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| println_token T_UNKNOW							{ char* str = malloc(50);
+												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| println_token error								{ char* str = malloc(50);
+												sprintf(str, "println(): Parameter is required (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
 ;
 
-printlnComma_token: T_COMMA			{ char* commaLnTokenBuf = malloc(1000);
-						snprintf(commaLnTokenBuf, 1000, "\tpushad\n\n");
-						appendNode(&head, createNode(commaLnTokenBuf, cmd_seq, -1));
-						cmd_seq++;
-						showCmd = 1; 
-						int_counter = 0; }
+printlnComma_token:
+
+	T_COMMA										{ char* commaLnTokenBuf = malloc(1000);
+												snprintf(commaLnTokenBuf, 1000, "\tpushad\n\n");
+												appendNode(&head, createNode(commaLnTokenBuf, cmd_seq, -1));
+												cmd_seq++;
+												showCmd = 1; 
+												int_counter = 0;
+												}
 
 ;
 
-println_token: T_PRINTLN				{ char* printlnTokenBuf = malloc(1000);
-						snprintf(printlnTokenBuf, 1000, "\tpushad\n\n");
-						appendNode(&head, createNode(printlnTokenBuf, cmd_seq, -1));
-						cmd_seq++;
-						showCmd = 1; 
-						int_counter = 0; }
+println_token:
+	
+	T_PRINTLN										{ char* printlnTokenBuf = malloc(1000);
+												snprintf(printlnTokenBuf, 1000, "\tpushad\n\n");
+												appendNode(&head, createNode(printlnTokenBuf, cmd_seq, -1));
+												cmd_seq++;
+												showCmd = 1; 
+												int_counter = 0;
+												}
 
 ;
 
-hex: T_HEXPRINT T_LEFT expression T_RIGHT	{ char* snum = malloc(30);
-						snprintf (snum, 30, "0x%X", $3);
-						int len=0;
-						len = strlen(snum);
-						$$ = malloc(len + 1);
-						sprintf($$, "%s", snum); 
-						free(snum); 
-						convertPrint(2, $3, -1); }
+hex:
+
+	T_HEXPRINT T_LEFT expression T_RIGHT					{ char* snum = malloc(30);
+												snprintf (snum, 30, "0x%X", $3);
+												int len=0;
+												len = strlen(snum);
+												$$ = malloc(len + 1);
+												sprintf($$, "%s", snum); 
+												free(snum); 
+												convertPrint(2, $3, -1); 
+												}
+
+	| T_HEXPRINT T_LEFT error T_RIGHT						{ char* str = malloc(50);
+												sprintf(str, "hex(): Parameter is required (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| T_HEXPRINT T_LEFT expression error					{ char* str = malloc(50);
+												sprintf(str, "\'hex()\': Missing \')\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| T_HEXPRINT error								{ char* str = malloc(50);
+												sprintf(str, "\'hex()\': Missing \'(\' (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| T_HEXPRINT T_UNKNOW 								{ char* str = malloc(50);
+												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
+
+	| T_UNKNOW 										{ char* str = malloc(50);
+												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+												yyerror(str); 
+												exit(0);
+												}
 ;
 
-expression: T_INT				{  
-						 $$ = $1;
+expression: 
 
-						 if(showCmd == 1){
-							if(int_counter == 0){
-								char* intBuf = malloc(1000);
-								snprintf(intBuf, 1000, "\tmov\teax, %d\n\n", $1);
-								appendNode(&head, createNode(intBuf, cmd_seq, -1));
-								cmd_seq++;
-								int_counter = 1;
-							}
-							else {
-								char* intBuf = malloc(1000);
-								snprintf(intBuf, 1000, "\tpush\teax\n\tmov\teax, %d\n\n", $1);
-								appendNode(&head, createNode(intBuf, cmd_seq, -1));
-								cmd_seq++;
-							}
-						 }
+	T_INT											{  
+												 $$ = $1;
 
-						 /*insert(&int_stack, $1);
-						 printf("%d\n", peek(int_stack));
-						 isVar = 0;*/
-						 printf("%d\n",$1); 
-						}
+												 if(showCmd == 1){
+													if(int_counter == 0){
+														char* intBuf = malloc(1000);
+														snprintf(intBuf, 1000, "\tmov\teax, %d\n\n", $1);
+														appendNode(&head, createNode(intBuf, cmd_seq, -1));
+														cmd_seq++;
+														int_counter = 1;
+													}
+													else {
+														char* intBuf = malloc(1000);
+														snprintf(intBuf, 1000, "\tpush\teax\n\tmov\teax, %d\n\n", $1);
+														appendNode(&head, createNode(intBuf, cmd_seq, -1));
+														cmd_seq++;
+													}
+												 }
 
-	| T_HEX                               { $$ = $1; 
-						 //isVar = 0;
+												 /*insert(&int_stack, $1);
+												 printf("%d\n", peek(int_stack));
+												 isVar = 0;*/
+												 printf("%d\n",$1); 
+												}
 
-						 if(showCmd == 1){
-							char* snum = malloc(30);
-							snprintf (snum, 30, "0%xh", $1);
-							if(int_counter == 0){
-								char* hexBuf = malloc(1000);
-								snprintf(hexBuf, 1000, "\tmov\teax, %s\n\n", snum);
-								appendNode(&head, createNode(hexBuf, cmd_seq, -1));
-								cmd_seq++;
-								int_counter = 1;
-							}
-							else {
-								char* hexBuf = malloc(1000);
-								snprintf(hexBuf, 1000, "\tpush\teax\n\tmov\teax, %s\n\n", snum);
-								appendNode(&head, createNode(hexBuf, cmd_seq, -1));
-								cmd_seq++;
-							}
-							free(snum);
-						 }
+	| T_HEX                               					{ $$ = $1; 
+												 //isVar = 0;
 
-						}
+												 if(showCmd == 1){
+													char* snum = malloc(30);
+													snprintf (snum, 30, "0%xh", $1);
+													if(int_counter == 0){
+														char* hexBuf = malloc(1000);
+														snprintf(hexBuf, 1000, "\tmov\teax, %s\n\n", snum);
+														appendNode(&head, createNode(hexBuf, cmd_seq, -1));
+														cmd_seq++;
+														int_counter = 1;
+													}
+													else {
+														char* hexBuf = malloc(1000);
+														snprintf(hexBuf, 1000, "\tpush\teax\n\tmov\teax, %s\n\n", snum);
+														appendNode(&head, createNode(hexBuf, cmd_seq, -1));
+														cmd_seq++;
+													}
+													free(snum);
+												 }
 
-	| T_VAR				{ $$ = getVar($1);
+												}
 
-						 if(showCmd == 1){
-							if(int_counter == 0){
-								char* intBuf = malloc(1000);
-								snprintf(intBuf, 1000, "\tmov\teax, [var%d]\n\n", $1);
-								appendNode(&head, createNode(intBuf, cmd_seq, -1));
-								cmd_seq++;
-								int_counter = 1;
-							}
-							else {
-								char* intBuf = malloc(1000);
-								snprintf(intBuf, 1000, "\tpush\teax\n\tmov\teax, [var%d]\n\n", $1);
-								appendNode(&head, createNode(intBuf, cmd_seq, -1));
-								cmd_seq++;
-							}
-						 }
+	| T_VAR										{ $$ = getVar($1);
 
-						 /*if(showCmd == 1) {
-							 isVar = 1;
+												 if(showCmd == 1){
+													if(int_counter == 0){
+														char* intBuf = malloc(1000);
+														snprintf(intBuf, 1000, "\tmov\teax, [var%d]\n\n", $1);
+														appendNode(&head, createNode(intBuf, cmd_seq, -1));
+														cmd_seq++;
+														int_counter = 1;
+													}
+													else {
+														char* intBuf = malloc(1000);
+														snprintf(intBuf, 1000, "\tpush\teax\n\tmov\teax, [var%d]\n\n", $1);
+														appendNode(&head, createNode(intBuf, cmd_seq, -1));
+														cmd_seq++;
+													}
+												 }
 
-							 char* varBuf = malloc(1000);
-							 snprintf(varBuf, 1000, "\tmov\tebx, [var%d]\n", $1);
-							 appendNode(&head, createNode(varBuf, cmd_seq, -1));
-							 cmd_seq++;
-						 }*/
+												 /*if(showCmd == 1) {
+													 isVar = 1;
 
-						 printf("Expr: var%d\n", $1);
-						}
+													 char* varBuf = malloc(1000);
+													 snprintf(varBuf, 1000, "\tmov\tebx, [var%d]\n", $1);
+													 appendNode(&head, createNode(varBuf, cmd_seq, -1));
+													 cmd_seq++;
+												 }*/
 
-	| expression T_PLUS expression	{ $$ = $1 + $3;
+												 printf("Expr: var%d\n", $1);
+												}
 
-						 if(showCmd == 1){
-							char* plusBuf = malloc(1000);
-							snprintf(plusBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tadd\teax, ebx\n\n");
-							appendNode(&head, createNode(plusBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+	| expression T_PLUS expression						{ $$ = $1 + $3;
 
-						 /*if(isVar == 1){
-							char* constBuf = malloc(1000);
-							snprintf(constBuf, 1000, "\tadd\teax, %d\n", popAll(&int_stack));
-							appendNode(&head, createNode(constBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }*/
-						 
-						 printf("Create Node\n");
-						 
-						 /*char* exprBuf = malloc(1000);
-						 snprintf(intBuf, 1000, "\tmov\teax, %ld\n\tmov\t[var%d], eax\n\n\tpopad\n\n", value, var_num);
-						 appendNode(&head, createNode(assignBuf1, cmd_seq, ASSIGN_NUM));
-						 cmd_seq++;*/ 
-						 }
+												 if(showCmd == 1){
+													char* plusBuf = malloc(1000);
+													snprintf(plusBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tadd\teax, ebx\n\n");
+													appendNode(&head, createNode(plusBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
 
-	| expression T_MINUS expression	{ $$ = $1 - $3; 
+												 /*if(isVar == 1){
+													char* constBuf = malloc(1000);
+													snprintf(constBuf, 1000, "\tadd\teax, %d\n", popAll(&int_stack));
+													appendNode(&head, createNode(constBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }*/
+												 
+												 printf("Create Node\n");
+												 
+												 /*char* exprBuf = malloc(1000);
+												 snprintf(intBuf, 1000, "\tmov\teax, %ld\n\tmov\t[var%d], eax\n\n\tpopad\n\n", value, var_num);
+												 appendNode(&head, createNode(assignBuf1, cmd_seq, ASSIGN_NUM));
+												 cmd_seq++;*/ 
+												 }
 
-						 if(showCmd == 1){
-							char* minusBuf = malloc(1000);
-							snprintf(minusBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tsub\teax, ebx\n\n");
-							appendNode(&head, createNode(minusBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+	| expression T_MINUS expression						{ $$ = $1 - $3; 
 
-						}
+												 if(showCmd == 1){
+													char* minusBuf = malloc(1000);
+													snprintf(minusBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tsub\teax, ebx\n\n");
+													appendNode(&head, createNode(minusBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
 
-	| expression T_MULTIPLY expression	{ $$ = $1 * $3; 
+												}
 
-						 if(showCmd == 1){
-							char* mulBuf = malloc(1000);
-							snprintf(mulBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\timul\tebx\n\n");
-							appendNode(&head, createNode(mulBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+	| expression T_MULTIPLY expression						{ $$ = $1 * $3; 
 
-						}
-	| expression T_DIVIDE expression	{ $$ = $1 / $3; 
+												 if(showCmd == 1){
+													char* mulBuf = malloc(1000);
+													snprintf(mulBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\timul\tebx\n\n");
+													appendNode(&head, createNode(mulBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
 
-						 if(showCmd == 1){
-							char* divBuf = malloc(1000);
-							snprintf(divBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\n");
-							appendNode(&head, createNode(divBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+												}
 
-						}
+	| expression T_DIVIDE expression						{ $$ = $1 / $3; 
 
-	| expression T_MOD expression	        { $$ = $1 % $3; 
+												 if(showCmd == 1){
+													char* divBuf = malloc(1000);
+													snprintf(divBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\n");
+													appendNode(&head, createNode(divBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
 
-						 if(showCmd == 1){
-							char* modBuf = malloc(1000);
-							snprintf(modBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\tmov\teax, edx\n\n");
-							appendNode(&head, createNode(modBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+												}
 
-						}
+	| expression T_MOD expression	        					{ $$ = $1 % $3; 
 
-	| expression T_POW expression        	{ $$ = (int)pow ($1, $3); }
-	| T_MINUS expression %prec T_NEG      { $$ = -$2; 
+												 if(showCmd == 1){
+													char* modBuf = malloc(1000);
+													snprintf(modBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\tmov\teax, edx\n\n");
+													appendNode(&head, createNode(modBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
+
+												}
+
+	| expression T_POW expression        					{ $$ = (int)pow ($1, $3); }
+
+	| T_MINUS expression %prec T_NEG      					{ $$ = -$2; 
 						
-						 if(showCmd == 1){
-							char* divBuf = malloc(1000);
-							snprintf(divBuf, 1000, "\tneg\teax\n\n");
-							appendNode(&head, createNode(divBuf, cmd_seq, -1));
-							cmd_seq++;
-						 }
+												 if(showCmd == 1){
+													char* divBuf = malloc(1000);
+													snprintf(divBuf, 1000, "\tneg\teax\n\n");
+													appendNode(&head, createNode(divBuf, cmd_seq, -1));
+													cmd_seq++;
+												 }
 						
-						}
-	| T_PLUS expression %prec T_POS       { $$ = $2; }
-	| T_NOT expression	                { $$ = ~$2; }
-	| T_LEFT expression T_RIGHT		{ $$ = $2; }
+												}
+
+	| T_PLUS expression %prec T_POS       					{ $$ = $2; }
+
+	| T_NOT expression	                					{ $$ = ~$2; }
+
+	| T_LEFT expression T_RIGHT							{ $$ = $2; }
 ;
 
 %%
@@ -758,7 +1022,7 @@ void convertLoop(int sec_num, int loop_count) /////
 	char* loopBuf2 = malloc(1000);
 
 	if(sec_num == 1){
-		snprintf(loopBuf1, 1000, "\tpop\tebx\n\n\tsub\teax, ebx\n\n\tcmp\teax, 0\n\tjl\tl%d\n\n\tmov\tecx, eax\n\nl%d:\n\tpush\tecx\n\tcall\tl%d\n\tpop\tecx\n\n\tloop\tl%d\n\nl%d:\n\tjmp l%d\n\nl%d:\n", label_seq + 1, label_seq, label_seq + 2, label_seq, label_seq + 1, label_seq + 3, label_seq + 2);
+		snprintf(loopBuf1, 1000, "\tpop\tebx\n\n\tsub\teax, ebx\n\n\tcmp\teax, 0\n\tjle\tl%d\n\n\tmov\tecx, eax\n\nl%d:\n\tpush\tecx\n\tcall\tl%d\n\tpop\tecx\n\n\tloop\tl%d\n\nl%d:\n\tjmp l%d\n\nl%d:\n", label_seq + 1, label_seq, label_seq + 2, label_seq, label_seq + 1, label_seq + 3, label_seq + 2);
 		appendNode(&head, createNode(loopBuf1, cmd_seq, LOOP_NUM));
 		label_seq += 3;
 		push(&root, label_seq);
@@ -779,10 +1043,8 @@ void convertLoop(int sec_num, int loop_count) /////
 
 void convertCondition(int sec_num) //To-Do: else
 {
-	char* condBuf1 = malloc(1000);
-	char* condBuf2 = malloc(1000);
-
-	if(sec_num == 1){
+	if(sec_num == 1){ //open if
+		char* condBuf1 = malloc(1000);
 		snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjne\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
 
 		appendNode(&head, createNode(condBuf1, cmd_seq, COND_NUM));
@@ -791,9 +1053,24 @@ void convertCondition(int sec_num) //To-Do: else
 		cmd_seq++;
 		label_seq++;
 	}
-	else if(sec_num == 2){
+	else if(sec_num == 2){ //close if no else
+		char* condBuf2 = malloc(1000);
 		snprintf(condBuf2, 1000, "l%d:\n", pop(&root));
 		appendNode(&head, createNode(condBuf2, cmd_seq, COND_NUM));
+		cmd_seq++;
+	}
+	else if(sec_num == 3){ //close if, open else
+		char* condBuf3 = malloc(1000);
+		snprintf(condBuf3, 1000, "\tjmp\tl%d\n\nl%d:\n", label_seq, pop(&root));
+		appendNode(&head, createNode(condBuf3, cmd_seq, COND_NUM));
+		push(&root, label_seq);
+		cmd_seq++;
+		label_seq++;
+	}
+	else if(sec_num == 4){ //close else
+		char* condBuf4 = malloc(1000);
+		snprintf(condBuf4, 1000, "l%d:\n", pop(&root));
+		appendNode(&head, createNode(condBuf4, cmd_seq, COND_NUM));
 		cmd_seq++;
 	}
 	else{

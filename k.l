@@ -9,9 +9,10 @@ L		[a-zA-Z_]
 #define YY_DECL int yylex()
 
 extern void yyerror(const char* s);
+extern void yyset_lineno (int);
 
 %}
-
+%option yylineno
 %%
 
 [0-9]+		{yylval.ival = atoi(yytext); return T_INT;}
@@ -54,6 +55,7 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 
 [ \t\v\f\n]	{}
 
-.		{printf("Bad character\n");}
+
+.		{return T_UNKNOW;}
 
 %%

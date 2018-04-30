@@ -35,7 +35,7 @@ global _start
 _start:
 	pushad
 
-	mov	eax, 0
+	mov	eax, 3
 
 	mov	[var1], eax
 
@@ -43,9 +43,9 @@ _start:
 
 	pushad
 
-	mov	eax, 0
+	mov	eax, 15
 
-	mov	[var2], eax
+	mov	[var4], eax
 
 	popad
 
@@ -53,74 +53,82 @@ _start:
 
 	push	eax
 
-	mov	eax, 5
-
-	push	eax
-	mov	eax, 5
-
-	mov	ebx, eax
-	pop	eax
-	add	eax, ebx
-
-	pop	ebx
-
-	sub	eax, ebx
-
-	cmp	eax, 0
-	jl	l2
-
-	mov	ecx, eax
-
-l1:
-	push	ecx
-	call	l3
-	pop	ecx
-
-	loop	l1
-
-l2:
-	jmp l4
-
-l3:
-	mov	eax, [var1]
-
-	push	eax
-	mov	eax, 02h
-
-	mov	ebx, eax
-	pop	eax
-	idiv	ebx
-	mov	eax, edx
-
-	push	eax
-
-	mov	eax, 0
+	mov	eax, 3
 
 	mov	edx, eax
 
 	pop	eax
 
 	cmp	eax, edx
-	jne	l5
-	jmp	l6
+	jne	l1
+	jmp	l2
 
-l5:
-	jmp	l7
+l1:
+	jmp	l3
 
-l6:
-	pushad
-
-	mov	ecx, str1
-	mov	edx, 25
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
+l2:
 	pushad
 
 	mov	eax, [var1]
+
+	push	eax
+	mov	eax, 2
+
+	mov	ebx, eax
+	pop	eax
+	sub	eax, ebx
+
+	mov	[var1], eax
+
+	popad
+
+	mov	eax, [var4]
+
+	push	eax
+
+	mov	eax, 15
+
+	mov	edx, eax
+
+	pop	eax
+
+	cmp	eax, edx
+	jne	l4
+	jmp	l5
+
+l4:
+	jmp	l6
+
+l5:
+	mov	eax, [var1]
+
+	push	eax
+
+	mov	eax, [var4]
+
+	pop	ebx
+
+	sub	eax, ebx
+
+	cmp	eax, 0
+	jle	l8
+
+	mov	ecx, eax
+
+l7:
+	push	ecx
+	call	l9
+	pop	ecx
+
+	loop	l7
+
+l8:
+	jmp l10
+
+l9:
+	pushad
+
+	mov	eax, 5
 
 	mov	dword[ct1], 0
 	mov	edi, decstr
@@ -129,12 +137,12 @@ l6:
 
 	push	0
 	cmp	eax, 0
-	jge	l8
+	jge	l11
 	neg	eax
 	pop	ebx
 	push	'-'
 
-l8:
+l11:
 	mov	ebx, 10
 	div	ebx
 	add	edx, '0'
@@ -143,17 +151,17 @@ l8:
 	inc	dword[ct1]
 	xor	edx, edx
 	cmp	eax, 0
-	jne	l8
+	jne	l11
 
 	pop	edx
 	cmp	edx, 0
-	je	l9
+	je	l12
 	mov	byte[edi], dl
 	dec	edi
 	inc	dword[ct1]
 	xor	edx, edx
 
-l9:
+l12:
 	inc	edi
 	mov	ecx, edi
 	mov	edx, [ct1]
@@ -163,97 +171,6 @@ l9:
 
 	popad
 
-	pushad
-
-	mov	ecx, nl
-	mov	edx, 1
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	pushad
-
-	mov	ecx, str2
-	mov	edx, 25
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	pushad
-
-	mov	eax, [var1]
-
-	mov	dword[ct1], 0
-	mov	edi, decstr
-	add	edi, 9
-	xor	edx, edx
-
-l10:
-	mov	ebx, 16
-	div	ebx
-	add	edx, '0'
-
-	cmp	edx, '9'
-	jle	l11
-	add	edx, 7
-
-l11:
-	mov	byte[edi], dl
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-	cmp	eax, 0
-	jne	l10
-
-	mov	byte[edi], 'x'
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-
-	mov	byte[edi], '0'
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-
-	inc	edi
-	mov	ecx, edi
-	mov	edx, [ct1]
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	pushad
-
-	mov	ecx, nl
-	mov	edx, 1
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	pushad
-
-	mov	eax, [var2]
-
-	push	eax
-	mov	eax, [var1]
-
-	mov	ebx, eax
-	pop	eax
-	add	eax, ebx
-
-	mov	[var2], eax
-
-	popad
-
-l7:
 	pushad
 
 	mov	eax, [var1]
@@ -271,56 +188,11 @@ l7:
 
 	ret
 
-l4:
+l10:
 	pushad
 
-	mov	ecx, str3
-	mov	edx, 31
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	pushad
-
-	mov	eax, [var2]
-
-	mov	dword[ct1], 0
-	mov	edi, decstr
-	add	edi, 9
-	xor	edx, edx
-
-	push	0
-	cmp	eax, 0
-	jge	l12
-	neg	eax
-	pop	ebx
-	push	'-'
-
-l12:
-	mov	ebx, 10
-	div	ebx
-	add	edx, '0'
-	mov	byte[edi], dl
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-	cmp	eax, 0
-	jne	l12
-
-	pop	edx
-	cmp	edx, 0
-	je	l13
-	mov	byte[edi], dl
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-
-l13:
-	inc	edi
-	mov	ecx, edi
-	mov	edx, [ct1]
+	mov	ecx, str1
+	mov	edx, 1
 	mov	eax, 4
 	mov	ebx, 1
 	int	0x80
@@ -337,103 +209,62 @@ l13:
 
 	popad
 
-	mov	eax, 5
+	pushad
+
+	mov	eax, 0
+
+	mov	[var2], eax
+
+	popad
+
+	mov	eax, [var1]
 
 	push	eax
 
-	mov	eax, 10
+	mov	eax, [var4]
 
-	mov	edx, eax
+	pop	ebx
 
-	pop	eax
+	sub	eax, ebx
 
-	cmp	eax, edx
-	jne	l14
-	jmp	l15
+	cmp	eax, 0
+	jle	l14
+
+	mov	ecx, eax
+
+l13:
+	push	ecx
+	call	l15
+	pop	ecx
+
+	loop	l13
 
 l14:
-	jmp	l16
+	jmp l16
 
 l15:
 	mov	eax, [var2]
 
 	push	eax
 
-	mov	eax, 20
+	mov	eax, [var1]
 
-	pop	ebx
+	mov	edx, eax
 
-	sub	eax, ebx
+	pop	eax
 
-	cmp	eax, 0
-	jl	l18
-
-	mov	ecx, eax
+	cmp	eax, edx
+	jne	l17
+	jmp	l18
 
 l17:
-	push	ecx
-	call	l19
-	pop	ecx
-
-	loop	l17
+	jmp	l19
 
 l18:
-	jmp l20
-
-l19:
 	pushad
 
-	mov	eax, 5
-
-	mov	dword[ct1], 0
-	mov	edi, decstr
-	add	edi, 9
-	xor	edx, edx
-
-	push	0
-	cmp	eax, 0
-	jge	l21
-	neg	eax
-	pop	ebx
-	push	'-'
-
-l21:
-	mov	ebx, 10
-	div	ebx
-	add	edx, '0'
-	mov	byte[edi], dl
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-	cmp	eax, 0
-	jne	l21
-
-	pop	edx
-	cmp	edx, 0
-	je	l22
-	mov	byte[edi], dl
-	dec	edi
-	inc	dword[ct1]
-	xor	edx, edx
-
-l22:
-	inc	edi
-	mov	ecx, edi
-	mov	edx, [ct1]
-	mov	eax, 4
-	mov	ebx, 1
-	int	0x80
-
-	popad
-
-	ret
-
-l20:
-l16:
-	pushad
-
-	mov	ecx, str4
-	mov	edx, 4
+	mov	ecx, str2
+	mov	edx, 10
 	mov	eax, 4
 	mov	ebx, 1
 	int	0x80
@@ -450,12 +281,31 @@ l16:
 
 	popad
 
+l19:
+	pushad
+
+	mov	eax, [var2]
+
+	push	eax
+	mov	eax, 1
+
+	mov	ebx, eax
+	pop	eax
+	add	eax, ebx
+
+	mov	[var2], eax
+
+	popad
+
+	ret
+
+l16:
+l6:
+l3:
 	mov	eax, 1
 	int	0x80
 
 section .data
-	str1 db "The value of var1 (dec): "
-	str2 db "The value of var1 (hex): "
-	str3 db "Sum of even number from 0-9 is "
-	str4 db "TEST"
+	str1 db " "
+	str2 db "Reach var1"
 	nl db 10
