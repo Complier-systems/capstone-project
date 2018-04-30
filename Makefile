@@ -1,13 +1,13 @@
 all: k.exe
 
-u.tab.c u.tab.h: u.y
-	bison -d u.y
+k.tab.c k.tab.h:	k.y
+	bison -d k.y
 
-lex.yy.c: u.l u.tab.h
-	flex u.l
+lex.yy.c: k.l k.tab.h
+	flex k.l
 
-u: lex.yy.c u.tab.c u.tab.h
-	gcc -o u u.tab.c lex.yy.c -lm
+k: lex.yy.c k.tab.c k.tab.h
+	gcc -o k k.tab.c lex.yy.c -lm
 
 k.asm: k test.c
 	./k test.c

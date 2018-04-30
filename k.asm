@@ -74,6 +74,12 @@ l2:
 	push	eax
 	mov	eax, 2
 
+	neg	eax
+
+	neg	eax
+
+	neg	eax
+
 	mov	ebx, eax
 	pop	eax
 	sub	eax, ebx
@@ -301,11 +307,70 @@ l19:
 
 l16:
 l6:
+	jmp	l20
+
 l3:
+	pushad
+
+	mov	eax, [var1]
+
+	mov	dword[ct1], 0
+	mov	edi, decstr
+	add	edi, 9
+	xor	edx, edx
+
+	push	0
+	cmp	eax, 0
+	jge	l21
+	neg	eax
+	pop	ebx
+	push	'-'
+
+l21:
+	mov	ebx, 10
+	div	ebx
+	add	edx, '0'
+	mov	byte[edi], dl
+	dec	edi
+	inc	dword[ct1]
+	xor	edx, edx
+	cmp	eax, 0
+	jne	l21
+
+	pop	edx
+	cmp	edx, 0
+	je	l22
+	mov	byte[edi], dl
+	dec	edi
+	inc	dword[ct1]
+	xor	edx, edx
+
+l22:
+	inc	edi
+	mov	ecx, edi
+	mov	edx, [ct1]
+	mov	eax, 4
+	mov	ebx, 1
+	int	0x80
+
+	popad
+
+l20:
+	pushad
+
+	mov	ecx, str3
+	mov	edx, 8
+	mov	eax, 4
+	mov	ebx, 1
+	int	0x80
+
+	popad
+
 	mov	eax, 1
 	int	0x80
 
 section .data
 	str1 db " "
 	str2 db "Reach var1"
+	str3 db "Finish!!"
 	nl db 10

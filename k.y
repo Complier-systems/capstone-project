@@ -47,7 +47,7 @@ void printNodeList(str_node**);
 void initialize();
 void convertAssignment(int);
 void convertLoop(int, int);
-void convertCondition(int);
+void convertCondition(int, int);
 void convertPrint(int, long, int);
 void convertPrintln();
 s_node* createStackNode(int);
@@ -71,6 +71,7 @@ int str_seq = 1;
 int isVar = 0;
 int showCmd = 0;
 int int_counter = 0;
+int cmp_num = 0;
 
 s_node* root = NULL;
 s_node* int_stack = NULL;
@@ -85,8 +86,8 @@ s_node* int_stack = NULL;
 %token<ival> T_INT
 %token<ival> T_HEX
 %token<ival> T_VAR
-%token T_PLUS T_MINUS T_MULTIPLY T_DIVIDE T_MOD T_POW T_LEFT T_RIGHT
-%token<ival> T_REG
+%token T_LEFT
+%token T_RIGHT
 %token T_PRINT
 %token T_PRINTLN
 %token T_HEXPRINT
@@ -95,17 +96,20 @@ s_node* int_stack = NULL;
 %token T_CLEFT
 %token T_CRIGHT
 %token T_IF
-%token T_ENDIF
 %token T_ELSE
 %token T_ASSIGN
 %token T_EQUAL
+%token T_GREATER
+%token T_LESSER
+%token T_GREATEREQU
+%token T_LESSEREQU
+%token T_NOTEQUAL
 %token T_LOOP
 %token T_UNKNOW
 %token<sval> T_STRING
 
 %left T_PLUS T_MINUS
 %left T_MULTIPLY T_DIVIDE T_MOD
-%right T_NOT
 %precedence T_NEG T_POS
 %right T_POW
 
@@ -163,7 +167,7 @@ semi_statement:
 
 nonsemi_statement:
 
-	if 											{ if($1 == 1) printf("True\n"); else printf("False\n");  /*convertCondition();*/}
+	if 											{ if($1 == 1) printf("True\n"); else printf("False\n"); }
 
 	| loop										{ if($1 < 0){printf("range : 0\n");} else {printf("range : %d\n", $1);} }
 ;
@@ -243,9 +247,9 @@ loopComma_token:
 
 if:
 	
-	if_token T_LEFT if_comparison T_RIGHT statement1			{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2); showCmd = 0; int_counter = 0; }
+	if_token T_LEFT if_comparison T_RIGHT statement1			{ $$ = $3; printf("CLOSE IF\n"); convertCondition(2, 0); showCmd = 0; int_counter = 0; }
 	
-	|if_token T_LEFT if_comparison T_RIGHT statement1 else_token statement1	{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(4); showCmd = 0; int_counter = 0; }
+	|if_token T_LEFT if_comparison T_RIGHT statement1 else_token statement1	{ $$ = $3; printf("CLOSE IF (ELSE)\n"); convertCondition(4, 0); showCmd = 0; int_counter = 0; }
 
 	| if_token T_LEFT if_comparison error					{ char* str = malloc(50);
 												 sprintf(str, "\'if\': Missing \')\' (line no. %d)\n",yylineno);
@@ -275,7 +279,7 @@ if_token:
 
 if_comparison:
 
-	expression equal_token expression						{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1); }
+	expression cmp_token expression						{ if($1 == $3) $$ = 1; else $$ = 0;  printf("OPEN IF %d %d %d\n",$1,$3,$$); convertCondition(1, cmp_num); cmp_num = 0; }
 
 	| expression error expression							{ char* str = malloc(50);
 												 sprintf(str, "\'if\': Unknow operation (line no. %d)\n",yylineno);
@@ -285,20 +289,66 @@ if_comparison:
 
 ;
 
-equal_token:
+cmp_token:
 
-	T_EQUAL										{ char* ifcmpBuf = malloc(1000);
+	T_EQUAL											{ char* ifcmpBuf = malloc(1000);
 												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
 												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
 												 cmd_seq++; 
 												 showCmd = 1; 
 												 int_counter = 0;
+												 cmp_num = 1;
+												}
+
+	| T_NOTEQUAL										{ char* ifcmpBuf = malloc(1000);
+												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
+												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
+												 cmd_seq++; 
+												 showCmd = 1; 
+												 int_counter = 0;
+												 cmp_num = 2;
+												}
+
+	| T_GREATER										{ char* ifcmpBuf = malloc(1000);
+												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
+												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
+												 cmd_seq++; 
+												 showCmd = 1; 
+												 int_counter = 0;
+												 cmp_num = 3;
+												}
+
+	| T_LESSER										{ char* ifcmpBuf = malloc(1000);
+												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
+												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
+												 cmd_seq++; 
+												 showCmd = 1; 
+												 int_counter = 0;
+												 cmp_num = 4;
+												}
+
+	| T_GREATEREQU										{ char* ifcmpBuf = malloc(1000);
+												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
+												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
+												 cmd_seq++; 
+												 showCmd = 1; 
+												 int_counter = 0;
+												 cmp_num = 5;
+												}
+
+	| T_LESSEREQU										{ char* ifcmpBuf = malloc(1000);
+												 snprintf(ifcmpBuf, 1000, "\tpush\teax\n\n");
+												 appendNode(&head, createNode(ifcmpBuf, cmd_seq, -1));
+												 cmd_seq++; 
+												 showCmd = 1; 
+												 int_counter = 0;
+												 cmp_num = 6;
 												}
 ;
 
 else_token:
 
-	T_ELSE										{ showCmd = 1; int_counter = 0; convertCondition(3); }
+	T_ELSE										{ showCmd = 1; int_counter = 0; convertCondition(3, 0); }
 
 ;
 
@@ -777,8 +827,6 @@ expression:
 
 	| T_PLUS expression %prec T_POS       					{ $$ = $2; }
 
-	| T_NOT expression	                					{ $$ = ~$2; }
-
 	| T_LEFT expression T_RIGHT							{ $$ = $2; }
 ;
 
@@ -1041,12 +1089,34 @@ void convertLoop(int sec_num, int loop_count) /////
 
 }
 
-void convertCondition(int sec_num) //To-Do: else
+void convertCondition(int sec_num, int cmp_num)
 {
 	if(sec_num == 1){ //open if
 		char* condBuf1 = malloc(1000);
-		snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjne\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
-
+		
+		if(cmp_num == 1){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjne\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else if(cmp_num == 2){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tje\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else if(cmp_num == 3){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjle\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else if(cmp_num == 4){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjge\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else if(cmp_num == 5){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjl\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else if(cmp_num == 6){
+			snprintf(condBuf1, 1000, "\tmov\tedx, eax\n\n\tpop\teax\n\n\tcmp\teax, edx\n\tjg\tl%d\n\tjmp\tl%d\n\nl%d:\n\tjmp\tl%d\n\nl%d:\n", label_seq, label_seq + 1, label_seq, label_seq + 2, label_seq + 1);
+		}
+		else{
+			printf("Invalid comparison number\n");
+			exit(1);
+		}
+		
 		appendNode(&head, createNode(condBuf1, cmd_seq, COND_NUM));
 		label_seq += 2;
 		push(&root, label_seq);
