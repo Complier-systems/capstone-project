@@ -34,6 +34,7 @@ extern void yyset_lineno (int);
 		}
 "if"		{return T_IF;}
 "else"		{return T_ELSE;}
+"else if"	{return T_ELSEIF;}
 "=="		{return T_EQUAL;}
 ">="		{return T_GREATEREQU;}
 "<="		{return T_LESSEREQU;}
