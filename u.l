@@ -33,9 +33,12 @@ extern void yyset_lineno (int);
 		 return T_VAR;
 		}
 "if"		{return T_IF;}
-"endif"		{return T_ENDIF;}
 "else"		{return T_ELSE;}
+"else if"	{return T_ELSEIF;}
 "=="		{return T_EQUAL;}
+">="		{return T_GREATEREQU;}
+"<="		{return T_LESSEREQU;}
+"!="		{return T_NOTEQUAL;}
 
 L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T_STRING;}
 
@@ -52,10 +55,11 @@ L?\"(\\.|[^\\"])*\"	{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return T
 "}"		{return T_CRIGHT;}
 ";"		{return T_SEMICOLON;}
 "="		{return T_ASSIGN;}
+">"		{return T_GREATER;}
+"<"		{return T_LESSER;}
 
-[ \t\v\f\n]	{}
-
-
+[ \t\v\f]	{ }//return T_NEWLINE;
+[\n]		{}
 .		{return T_UNKNOW;}
 
 %%
