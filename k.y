@@ -63,6 +63,7 @@ str_node* head = NULL;
 str_node* const_head = NULL;
 str_node* expr_head = NULL;
 s_node* root = NULL;
+s_node* elif_root = NULL;
 
 int cmd_seq = 0;
 int label_seq = 1;
@@ -75,6 +76,7 @@ int isElif = 0;
 int isFinElse = 0;
 int elif_seq = 0;
 int isOnlyElse = 0;
+int isPassIf = 0;
 
 %}
 
@@ -113,7 +115,6 @@ int isOnlyElse = 0;
 %left T_PLUS T_MINUS
 %left T_MULTIPLY T_DIVIDE T_MOD
 %precedence T_NEG T_POS
-%right T_POW
 
 %type<ival> expression
 %type<ival> assignment
@@ -135,7 +136,9 @@ int isOnlyElse = 0;
 calculation: 
 
 	| calculation line									{ }
+
 ;
+
 line: 
 
 	T_SEMICOLON										{ }
@@ -145,6 +148,7 @@ line:
 	| nonsemi_statement									{ }
 
 ;
+
 semi_statement:
 
 	print1 T_SEMICOLON									{ printf("print: %s\n", $1); }
@@ -253,7 +257,8 @@ if:
 												if(isFinElse == 0){ /*printf("CLOSE IF (ELSE IF)\n");*/ convertCondition(6, 0);}
 												showCmd = 0; 
 												int_counter = 0; 
-												isFinElse = 0;}
+												isFinElse = 0;
+												elif_seq = 0; }
 
 	| if_token T_LEFT if_comparison error							{ char* str = malloc(50);
 												sprintf(str, "\'if\': Missing \')\' (line no. %d)\n",yylineno);
@@ -279,7 +284,8 @@ if_token:
 												isElif = 0; 
 												isFinElse = 0; 
 												elif_seq = 0; 
-												isOnlyElse = 0; }
+												isOnlyElse = 0;
+												isPassIf = 1; }
 
 ;
 
@@ -388,7 +394,15 @@ elseif_token:
 	T_ELSEIF										{ showCmd = 1; 
 												int_counter = 0; 
 												isElif = 1; 
-												if(elif_seq == 0){elif_seq = label_seq; label_seq++;}
+												if(elif_seq == 0 && isPassIf == 1){
+													push(&elif_root, label_seq); 
+													elif_seq = label_seq; 
+													label_seq++; 
+													isPassIf = 0;
+												}
+												else if(elif_seq == 0 && isPassIf == 0){
+													elif_seq = peek(elif_root);
+												}
 
 												char* elifBuf1 = malloc(1000);
 												snprintf(elifBuf1, 1000, "\tjmp\tl%d\n\n", elif_seq);
@@ -798,8 +812,6 @@ expression:
 													cmd_seq++;
 												} }
 
-	| expression T_POW expression        							{ $$ = (int)pow($1, $3); }
-
 	| T_MINUS expression %prec T_NEG      							{ $$ = -$2; 
 												if(showCmd == 1){
 													char* divBuf = malloc(1000);
@@ -1117,9 +1129,10 @@ void convertCondition(int sec_num, int cmp_num)
 	}
 	else if(sec_num == 4){ //close else
 		char* condBuf4 = malloc(1000);
-
 		if(isOnlyElse == 0){
-			snprintf(condBuf4, 1000, "l%d:\n\nl%d:\n", elif_seq, pop(&root));
+			int tmp1 = pop(&elif_root);
+			int tmp2 = pop(&root);
+			snprintf(condBuf4, 1000, "l%d:\n\nl%d:\n", tmp1, tmp2);
 			appendNode(&head, createNode(condBuf4, cmd_seq, COND_NUM));
 			cmd_seq++;
 		}
@@ -1166,7 +1179,9 @@ void convertCondition(int sec_num, int cmp_num)
 	}
 	else if(sec_num == 6){ //close else if
 		char* condBuf6 = malloc(1000);
-		snprintf(condBuf6, 1000, "l%d:\n\nl%d:\n", elif_seq, pop(&root));
+		int tmp1 = pop(&elif_root);
+		int tmp2 = pop(&root);
+		snprintf(condBuf6, 1000, "l%d:\n\nl%d:\n", tmp1, tmp2);
 		appendNode(&head, createNode(condBuf6, cmd_seq, COND_NUM));
 		cmd_seq++;
 	}
@@ -1302,7 +1317,7 @@ l%d:\n\
 
 }
 
-void convertPrintln() /////
+void convertPrintln()
 {
 	char* printlnBuf = malloc(1000);
 	snprintf(printlnBuf, 1000, \
