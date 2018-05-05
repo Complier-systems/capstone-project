@@ -111,7 +111,7 @@ int nl_counter = 1;
 %token T_LESSEREQU
 %token T_NOTEQUAL
 %token T_LOOP
-%token T_UNKNOW
+%token T_UNKNOWN
 
 %left T_PLUS T_MINUS
 %left T_MULTIPLY T_DIVIDE T_MOD
@@ -178,6 +178,16 @@ semi_statement:
 												yyerror(str); 
 												exit(1); }
 
+	| T_UNKNOWN error									{ char* str = malloc(100);
+												sprintf(str, "Invalid command (line no. %d)\n", nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| T_PRINT T_UNKNOWN error								{ char* str = malloc(100);
+												sprintf(str, "Invalid command (line no. %d)\n", nl_counter);
+												yyerror(str); 
+												exit(1); }
+
 ;
 
 nonsemi_statement:
@@ -198,6 +208,31 @@ assignment:
 												convertAssignment($1);
 												showCmd = 0;
 												int_counter = 0; }
+
+	| error T_ASSIGN 									{ char* str = malloc(100);
+												sprintf(str, "Missing \"variable\" before \'=\' in \"assignment\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| T_UNKNOWN error T_ASSIGN								{ char* str = malloc(100);
+												sprintf(str, "Invalid \"variable\" before \'=\' in \"assignment\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| assign_var T_UNKNOWN error T_ASSIGN							{ char* str = malloc(100);
+												sprintf(str, "Invalid \"variable\" before \'=\' in \"assignment\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| assign_var T_ASSIGN error								{ char* str = malloc(100);
+												sprintf(str, "Invalid \"expression\" after \'=\' in \"assignment\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| assign_var T_ASSIGN T_SEMICOLON							{ char* str = malloc(100);
+												sprintf(str, "Missing \"expression\" after \'=\' in \"assignment\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
 
 ;
 
@@ -524,6 +559,31 @@ print2:
 												str_seq++;
 												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
+	| print_token error									{ char* str = malloc(100);
+												sprintf(str, "Missing \'(\' in \"print\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| print_token T_LEFT error								{ char* str = malloc(100);
+												sprintf(str, "Invalid argument(s) in \"print\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| print2 error										{ char* str = malloc(100);
+												sprintf(str, "Missing \',\' in \"print\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| print2 printComma_token error								{ char* str = malloc(100);
+												sprintf(str, "Invalid argument(s) in \"print\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| print_token T_LEFT T_RIGHT								{ char* str = malloc(100);
+												sprintf(str, "Missing argument(s) in \"print\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
 ;
 
 printComma_token:
@@ -545,6 +605,11 @@ print_token:
 												cmd_seq++;
 												showCmd = 1; 
 												int_counter = 0; }
+
+	/*| T_UNKNOWN error									{ char* str = malloc(100);
+												sprintf(str, "Invalid command (line no. %d)\n", nl_counter);
+												yyerror(str); 
+												exit(1); }*/
 
 ;
 
@@ -608,6 +673,31 @@ println2:
 												str_seq++;
 												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
+	| println_token error									{ char* str = malloc(100);
+												sprintf(str, "Missing \'(\' in \"println\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| println_token T_LEFT error								{ char* str = malloc(100);
+												sprintf(str, "Invalid argument(s) in \"println\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| println2 error									{ char* str = malloc(100);
+												sprintf(str, "Missing \',\' in \"println\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| println2 printlnComma_token error							{ char* str = malloc(100);
+												sprintf(str, "Invalid argument(s) in \"println\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| println_token T_LEFT T_RIGHT								{ char* str = malloc(100);
+												sprintf(str, "Missing argument(s) in \"println\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
 ;
 
 printlnComma_token:
@@ -629,6 +719,11 @@ println_token:
 												cmd_seq++;
 												showCmd = 1; 
 												int_counter = 0; }
+
+	/*| T_UNKNOWN error									{ char* str = malloc(100);
+												sprintf(str, "Invalid command (line no. %d)\n", nl_counter);
+												yyerror(str); 
+												exit(1); }*/
 
 ;
 

@@ -63,6 +63,6 @@ L?\"(\\.|[^\\"])*\"		{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return 
 
 [\n]				{ ++nl_counter; }
 
-.				{return T_UNKNOW;}
+.				{return T_UNKNOWN;}
 
 %%
