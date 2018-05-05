@@ -29,7 +29,6 @@ typedef struct stackNode
     struct stackNode* next;
 } s_node;
 
-extern int yylineno;
 void yyerror(const char* s);
 void setVar(int, int);
 int getVar(int);
@@ -77,6 +76,8 @@ int isFinElse = 0;
 int elif_seq = 0;
 int isOnlyElse = 0;
 int isPassIf = 0;
+
+int nl_counter = 1;
 
 %}
 
@@ -147,6 +148,11 @@ line:
 
 	| nonsemi_statement									{ }
 
+	| error											{ char* str = malloc(50);
+												sprintf(str, "Invalid command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
 ;
 
 semi_statement:
@@ -157,10 +163,20 @@ semi_statement:
 
 	| assignment T_SEMICOLON								{ printf(" = %d\n",$1); }
 
-	| error											{ char* str = malloc(50);
-												sprintf(str, "Missing \';\' (line no. %d)\n",yylineno);
+	| print1 error										{ char* str = malloc(100);
+												sprintf(str, "Missing \';\' after \"print\" command. (line no. %d)\n",nl_counter-1);
 												yyerror(str); 
-												exit(0); }
+												exit(1); }
+
+	| println1 error									{ char* str = malloc(100);
+												sprintf(str, "Missing \';\' after \"println\" command. (line no. %d)\n",nl_counter-1);
+												yyerror(str); 
+												exit(1); }
+
+	| assignment error									{ char* str = malloc(100);
+												sprintf(str, "Missing \';\' after \"assignment\" command. (line no. %d)\n",nl_counter-1);
+												yyerror(str); 
+												exit(1); }
 
 ;
 
@@ -199,20 +215,30 @@ loop:
 	loop_token T_LEFT loop_comparison T_RIGHT statement1					{ $$ = $3;
 												convertLoop(2, $3); /*printf("CLOSE LOOP\n");*/ }
 
-	| loop_token T_LEFT loop_comparison error						{ char* str = malloc(50);
-												sprintf(str, "\'loop\': Missing \')\' (line no. %d)\n",yylineno);
+	| loop_token error									{ char* str = malloc(100);
+												sprintf(str, "Missing \'(\' in \"loop\" command (line no. %d)\n",nl_counter);
 												yyerror(str); 
-												exit(0); }
-	
-	| loop_token error									{ char* str = malloc(50);
-												sprintf(str, "\'loop\': Missing \'(\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
+												exit(1); }
 
-	| loop_token T_UNKNOW									{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+	| loop_token T_LEFT error 								{ char* str = malloc(100);
+												sprintf(str, "Error occurs in comparison of \"loop\" command (line no. %d)\n",nl_counter);
 												yyerror(str); 
-												exit(0); }
+												exit(1); }
+
+	| loop_token T_CLEFT 									{ char* str = malloc(100);
+												sprintf(str, "Comparison not found in \"loop\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| loop_token T_LEFT loop_comparison error						{ char* str = malloc(100);
+												sprintf(str, "Missing \')\' in \"loop\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| loop_token T_LEFT loop_comparison T_RIGHT error					{ char* str = malloc(100);
+												sprintf(str, "Missing \'{\' in \"loop\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
 
 ;
 
@@ -227,11 +253,6 @@ loop_comparison:
 	
 	expression loopComma_token expression							{ $$ = $3-$1;
 												convertLoop(1, $3-$1); /*printf("OPEN LOOP\n");*/ }
-	
-	| error											{ char* str = malloc(50);
-												sprintf(str, "\'loop\': Missing parameter (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -260,21 +281,31 @@ if:
 												isFinElse = 0;
 												elif_seq = 0; }
 
-	| if_token T_LEFT if_comparison error							{ char* str = malloc(50);
-												sprintf(str, "\'if\': Missing \')\' (line no. %d)\n",yylineno);
+	| if_token error									{ char* str = malloc(100);
+												sprintf(str, "Missing \'(\' in \"if\" command (line no. %d)\n",nl_counter);
 												yyerror(str); 
-												exit(0); }
+												exit(1); }
 
-	| if_token error									{ char* str = malloc(50);
-												sprintf(str, "\'if\': Missing \'(\' (line no. %d)\n",yylineno);
+	| if_token T_LEFT error 								{ char* str = malloc(100);
+												sprintf(str, "Error occurs in comparison of \"if\" command (line no. %d)\n",nl_counter);
 												yyerror(str); 
-												exit(0); }
+												exit(1); }
 
-	| if_token T_UNKNOW									{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
+	| if_token T_CLEFT 									{ char* str = malloc(100);
+												sprintf(str, "Comparison not found in \"if\" command (line no. %d)\n",nl_counter);
 												yyerror(str); 
-												exit(0); }
-	
+												exit(1); }
+
+	| if_token T_LEFT if_comparison error							{ char* str = malloc(100);
+												sprintf(str, "Missing \')\' in \"if\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
+	| if_token T_LEFT if_comparison T_RIGHT error						{ char* str = malloc(100);
+												sprintf(str, "Missing \'{\' in \"if\" command (line no. %d)\n",nl_counter);
+												yyerror(str); 
+												exit(1); }
+
 ;
 
 if_token:
@@ -299,11 +330,6 @@ if_comparison:
 												else if(isElif == 1){convertCondition(5, cmp_num);}
 												else{printf("Invalid isElif number\n"); exit(1);}
 												cmp_num = 0; }
-
-	| expression error expression								{ char* str = malloc(50);
-												sprintf(str, "\'if\': Unknow operation (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -427,7 +453,7 @@ else_token:
 
 statement1:
 
-	statement2 T_CRIGHT									{ }	
+	statement2 T_CRIGHT									{ }
 
 ;
 
@@ -436,11 +462,6 @@ statement2:
 	statement2 line										{ }
 	
 	| T_CLEFT										{ }
-	
-	| error 										{ char* str = malloc(50);
-											 	sprintf(str, "Missing \'{\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -450,16 +471,6 @@ print1:
 												len = strlen($1);
 												$$ = malloc(len + 1);
 												sprintf($$, "%s", $1); }
-
-	| print2 T_COMMA T_RIGHT								{ char* str = malloc(50);
-												sprintf(str, "\'print()\': Unexpected \',\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| print2 error										{ char* str = malloc(50);
-												sprintf(str, "\'print()\': Missing \')\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -513,26 +524,6 @@ print2:
 												str_seq++;
 												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
-	| print_token default									{ char* str = malloc(50);
-												sprintf(str, "\'print()\': Missing \'(\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| print_token T_UNKNOW									{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| T_UNKNOW 										{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| print_token error									{ char* str = malloc(50);
-												sprintf(str, "print(): Parameter is required (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
 ;
 
 printComma_token:
@@ -564,16 +555,6 @@ println1:
 												$$ = malloc(len + 1); // + 1 for terminal symbol "\0"
 												sprintf($$, "%s\n", $1); 
 												convertPrintln(); }
-
-	| println2 T_COMMA T_RIGHT								{ char* str = malloc(50);
-												sprintf(str, "\'println()\': Unexpected \',\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| println2 error									{ char* str = malloc(50);
-												sprintf(str, "\'println()\': Missing \')\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -627,21 +608,6 @@ println2:
 												str_seq++;
 												appendNode(&const_head, createNode(strBuf, -1, INIT_NUM)); }
 
-	| println_token default									{ char* str = malloc(50);
-												sprintf(str, "\'println()\': Missing \'(\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| println_token T_UNKNOW								{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| println_token error									{ char* str = malloc(50);
-												sprintf(str, "println(): Parameter is required (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
 ;
 
 printlnComma_token:
@@ -666,18 +632,6 @@ println_token:
 
 ;
 
-default:
-
-	T_INT											{ }
-
-	| T_HEX											{ }
-
-	| T_VAR											{ }
-
-	| T_STRING										{ }
-
-;
-
 hex:
 
 	T_HEXPRINT T_LEFT expression T_RIGHT							{ char* snum = malloc(30);
@@ -688,31 +642,6 @@ hex:
 												sprintf($$, "%s", snum); 
 												free(snum); 
 												convertPrint(2, $3, -1); }
-
-	| T_HEXPRINT T_LEFT error T_RIGHT							{ char* str = malloc(50);
-												sprintf(str, "hex(): Parameter is required (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| T_HEXPRINT T_LEFT expression error							{ char* str = malloc(50);
-												sprintf(str, "\'hex()\': Missing \')\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| T_HEXPRINT error									{ char* str = malloc(50);
-												sprintf(str, "\'hex()\': Missing \'(\' (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| T_HEXPRINT T_UNKNOW 									{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
-
-	| T_UNKNOW 										{ char* str = malloc(50);
-												sprintf(str, "Unknow command (line no. %d)\n",yylineno);
-												yyerror(str); 
-												exit(0); }
 
 ;
 
@@ -799,7 +728,7 @@ expression:
 	| expression T_DIVIDE expression							{ $$ = $1 / $3; 
 												if(showCmd == 1){
 													char* divBuf = malloc(1000);
-													snprintf(divBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\n");
+													snprintf(divBuf, 1000, "\tmov\tedx, 0\n\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\n");
 													appendNode(&head, createNode(divBuf, cmd_seq, -1));
 													cmd_seq++;
 												} }
@@ -807,7 +736,7 @@ expression:
 	| expression T_MOD expression	        						{ $$ = $1 % $3; 
 												if(showCmd == 1){
 													char* modBuf = malloc(1000);
-													snprintf(modBuf, 1000, "\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\tmov\teax, edx\n\n");
+													snprintf(modBuf, 1000, "\tmov\tedx, 0\n\tmov\tebx, eax\n\tpop\teax\n\tidiv\tebx\n\tmov\teax, edx\n\n");
 													appendNode(&head, createNode(modBuf, cmd_seq, -1));
 													cmd_seq++;
 												} }
@@ -894,6 +823,8 @@ int main(int argc, char** argv) {
 	printNodeList(&const_head);
 
 	fclose(f);
+
+	printf("\nTotal lines: %d\n", nl_counter);
 
 	return 0;
 }
@@ -1008,11 +939,6 @@ void printNodeList(str_node** head)
 		printf("%s", ptr->str);
 		ptr = ptr->next;
 	}
-}
-
-void yyerror(const char* s) //show error messages
-{
-	fprintf(stderr, "Parse error: %s\n", s);
 }
 
 void initialize() /////
@@ -1335,4 +1261,9 @@ void convertPrintln()
 	appendNode(&head, createNode(printlnBuf, cmd_seq, PRINTLN_NUM));
 	cmd_seq++;
 
+}
+
+void yyerror(const char* s) //show error messages
+{
+	fprintf(stderr, "Parse error: %s\n", s);
 }

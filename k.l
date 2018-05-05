@@ -10,7 +10,7 @@ L		[a-zA-Z_]
 #define YY_DECL int yylex()
 
 extern void yyerror(const char* s);
-extern void yyset_lineno (int);
+extern int nl_counter;
 
 %}
 
@@ -59,7 +59,9 @@ L?\"(\\.|[^\\"])*\"		{yylval.sval = strndup(yytext+1, strlen(yytext)-2); return 
 ">"				{return T_GREATER;}
 "<"				{return T_LESSER;}
 
-[ \t\v\f\n]			{ }
+[ \t\v\f]
+
+[\n]				{ ++nl_counter; }
 
 .				{return T_UNKNOW;}
 
